@@ -1,0 +1,233 @@
+<%- include('../layout/header') %>
+
+<div class="page-wrapper">
+  <main class="main-content">
+    <!-- Search and Controls (Flexbox) -->
+    <section class="controls-section" style="background:#fff; padding:1rem; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); display:flex; flex-direction:row; gap:1rem; flex-wrap:wrap; justify-content:space-between; align-items:center;">
+      <div style="flex:1; min-width:240px;">
+        <input type="text" id="search-input" placeholder="חיפוש כתבות לפי מילת מפתח..." value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e0; border-radius:6px; font-size:0.95rem;">
+      </div>
+      <div style="display:flex; flex-direction:row; gap:0.5rem; align-items:center;">
+        <label for="sort-select" style="font-weight:600; font-size:0.9rem;">מיון:</label>
+        <select id="sort-select" style="padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px; font-size:0.9rem;">
+          <option value="date" <%= (typeof currentSort !== 'undefined' && currentSort === 'date') ? 'selected' : '' %>>תאריך פרסום</option>
+          <option value="popularity" <%= (typeof currentSort !== 'undefined' && currentSort === 'popularity') ? 'selected' : '' %>>פופולריות</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Category Filter Bar (Flexbox) -->
+    <nav class="category-bar" id="category-bar">
+      <button class="cat-btn <%= (!currentCategory || currentCategory === 'all') ? 'active' : '' %>" data-cat="all">הכל</button>
+      <button class="cat-btn <%= currentCategory === 'news' ? 'active' : '' %>" data-cat="news">חדשות</button>
+      <button class="cat-btn <%= currentCategory === 'tech' ? 'active' : '' %>" data-cat="tech">טכנולוגיה</button>
+      <button class="cat-btn <%= currentCategory === 'business' ? 'active' : '' %>" data-cat="business">כלכלה</button>
+      <button class="cat-btn <%= currentCategory === 'politics' ? 'active' : '' %>" data-cat="politics">פוליטיקה</button>
+      <button class="cat-btn <%= currentCategory === 'sports' ? 'active' : '' %>" data-cat="sports">ספורט</button>
+      <button class="cat-btn <%= currentCategory === 'culture' ? 'active' : '' %>" data-cat="culture">תרבות</button>
+      <button class="cat-btn <%= currentCategory === 'transport' ? 'active' : '' %>" data-cat="transport">תחבורה</button>
+    </nav>
+
+    <!-- Feed Container -->
+    <section class="feed-container" id="feed-container">
+      <% if (articles && articles.length > 0) { %>
+        <% articles.forEach(function(article) { %>
+          <article class="article-card" data-id="<%= article._id %>">
+            <div class="card-img-wrapper">
+              <img src="<%= article.publicVersion?.imageUrl || '/images/default-news.jpg' %>" alt="<%= article.publicVersion?.title %>" class="card-img" loading="lazy">
+            </div>
+            <div class="card-body">
+              <div>
+                <div class="card-meta">
+                  <span class="card-category"><%= article.category %></span>
+                  <span>&bull;</span>
+                  <span><%= new Date(article.publicVersion?.publishedAt || article.createdAt).toLocaleDateString('he-IL') %></span>
+                  <span>&bull;</span>
+                  <span>כתב: <%= article.authorId?.fullName || article.authorId?.username || 'מערכת האתר' %></span>
+                </div>
+                <h2 class="card-title">
+                  <a href="/articles/<%= article._id %>"><%= article.publicVersion?.title %></a>
+                </h2>
+                <p class="card-summary"><%= article.publicVersion?.summary || article.publicVersion?.snippet %></p>
+              </div>
+              <div class="card-footer">
+                <span>צפיות: <%= article.totalViews || 0 %></span>
+                <a href="/articles/<%= article._id %>" class="btn btn-primary" style="font-size:0.85rem; padding:0.35rem 0.75rem;">קרא עוד &larr;</a>
+              </div>
+            </div>
+          </article>
+        <% }); %>
+      <% } else { %>
+        <div style="background:#fff; padding:2rem; text-align:center; border-radius:8px;">
+          <p>לא נמצאו כתבות התואמות את החיפוש.</p>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- Infinite Scroll Sentinel & Loading Indicator -->
+    <div id="scroll-sentinel" style="height:40px; display:flex; justify-content:center; align-items:center;">
+      <span id="loading-spinner" style="display:none; color:#718096; font-weight:600;">טוען כתבות נוספות...</span>
+    </div>
+  </main>
+
+  <!-- Sidebar (Flexbox) -->
+  <aside class="sidebar">
+    <% if (typeof weather !== 'undefined' && weather) { %>
+      <div style="background:#fff; padding:1.25rem; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size:1.1rem; color:#1a365d; margin-bottom:0.75rem;">מזג אוויר מקומי</h3>
+        <div style="display:flex; flex-direction:row; align-items:center; gap:1rem;">
+          <span style="font-size:2.5rem;"><%= weather.icon %></span>
+          <div>
+            <div style="font-size:1.5rem; font-weight:800;"><%= weather.temperature %>°C</div>
+            <div style="color:#718096;"><%= weather.condition %> | <%= weather.city %></div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <div style="background:#fff; padding:1.25rem; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <h3 style="font-size:1.1rem; color:#1a365d; margin-bottom:0.75rem;">מבזקים אחרונים</h3>
+      <p style="color:#718096; font-size:0.9rem;">עדכונים שוטפים מהשטח 24 שעות ביממה על ידי צוות הכתבים של The Daily Web.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- Vanilla JS Client Integration for Infinite Scroll & Ajax Filtering -->
+<script>
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, s => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[s]));
+  }
+
+  let currentPage = 2; // Page 1 is already rendered by SSR
+  let isLoading = false;
+  let hasMoreArticles = <%= (articles && articles.length === 20) ? 'true' : 'false' %>;
+  let activeCategory = '<%= typeof currentCategory !== "undefined" ? currentCategory : "" %>';
+  let activeSort = '<%= typeof currentSort !== "undefined" ? currentSort : "date" %>';
+  let activeSearch = '<%= typeof searchQuery !== "undefined" ? searchQuery : "" %>';
+
+  const feedContainer = document.getElementById('feed-container');
+  const sentinel = document.getElementById('scroll-sentinel');
+  const spinner = document.getElementById('loading-spinner');
+  const searchInput = document.getElementById('search-input');
+  const sortSelect = document.getElementById('sort-select');
+  const categoryBar = document.getElementById('category-bar');
+
+  function renderArticleCard(a) {
+    const pubDate = new Date(a.publishedAt || a.createdAt).toLocaleDateString('he-IL');
+    const authorName = escapeHtml(a.author?.fullName || a.author?.username || 'מערכת האתר');
+    const title = escapeHtml(a.title);
+    const summary = escapeHtml(a.summary || a.snippet || '');
+    const category = escapeHtml(a.category);
+    const imageUrl = escapeHtml(a.imageUrl || '/images/default-news.jpg');
+    const safeId = encodeURIComponent(a.id);
+
+    return `
+      <article class="article-card" data-id="${safeId}">
+        <div class="card-img-wrapper">
+          <img src="${imageUrl}" alt="${title}" class="card-img" loading="lazy">
+        </div>
+        <div class="card-body">
+          <div>
+            <div class="card-meta">
+              <span class="card-category">${category}</span>
+              <span>&bull;</span>
+              <span>${pubDate}</span>
+              <span>&bull;</span>
+              <span>כתב: ${authorName}</span>
+            </div>
+            <h2 class="card-title">
+              <a href="/articles/${safeId}">${title}</a>
+            </h2>
+            <p class="card-summary">${summary}</p>
+          </div>
+          <div class="card-footer">
+            <span>צפיות: ${Number(a.views) || 0}</span>
+            <a href="/articles/${safeId}" class="btn btn-primary" style="font-size:0.85rem; padding:0.35rem 0.75rem;">קרא עוד &larr;</a>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  async function loadArticles(reset = false) {
+    if (isLoading || (!hasMoreArticles && !reset)) return;
+    isLoading = true;
+    spinner.style.display = 'inline-block';
+
+    if (reset) {
+      currentPage = 1;
+      hasMoreArticles = true;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 20,
+        sort: activeSort
+      });
+      if (activeCategory && activeCategory !== 'all') params.set('category', activeCategory);
+      if (activeSearch) params.set('q', activeSearch);
+
+      const res = await fetch('/api/articles?' + params.toString());
+      const data = await res.json();
+
+      if (data.success) {
+        if (reset) feedContainer.innerHTML = '';
+        if (data.articles.length > 0) {
+          data.articles.forEach(art => {
+            feedContainer.insertAdjacentHTML('beforeend', renderArticleCard(art));
+          });
+          currentPage++;
+          hasMoreArticles = data.hasMore;
+        } else if (reset) {
+          feedContainer.innerHTML = '<div style="background:#fff; padding:2rem; text-align:center; border-radius:8px;"><p>לא נמצאו כתבות.</p></div>';
+          hasMoreArticles = false;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load articles', e);
+    } finally {
+      isLoading = false;
+      spinner.style.display = 'none';
+    }
+  }
+
+  // Infinite Scroll Observer
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && hasMoreArticles && !isLoading) {
+      loadArticles(false);
+    }
+  }, { rootMargin: '200px' });
+  observer.observe(sentinel);
+
+  // Live Search with Debounce
+  let searchTimer;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      activeSearch = e.target.value.trim();
+      loadArticles(true);
+    }, 300);
+  });
+
+  // Sort Selection
+  sortSelect.addEventListener('change', (e) => {
+    activeSort = e.target.value;
+    loadArticles(true);
+  });
+
+  // Category Filtering
+  categoryBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.cat-btn');
+    if (!btn) return;
+    categoryBar.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCategory = btn.dataset.cat;
+    loadArticles(true);
+  });
+</script>
+
+<%- include('../layout/footer') %>

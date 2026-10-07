@@ -1,0 +1,73 @@
+<%- include('../layout/header') %>
+
+<div class="page-wrapper" style="justify-content: center; align-items: center; min-height: 60vh;">
+  <div style="background: #fff; width: 100%; max-width: 420px; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.07); border: 1px solid #e2e8f0;">
+    <h2 style="color: #1a365d; margin-bottom: 0.5rem; text-align: center; font-size: 1.5rem;">כניסת צוות המערכת</h2>
+    <p style="color: #718096; text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem;">עורכים וכתבים - הזדהו באמצעות שם משתמש וסיסמה</p>
+
+    <div id="login-alert" class="alert alert-danger" style="display: none; margin-bottom: 1rem;"></div>
+
+    <form id="login-form" style="display: flex; flex-direction: column; gap: 1rem;">
+      <div>
+        <label for="username" style="display: block; font-weight: 600; margin-bottom: 0.25rem;">שם משתמש:</label>
+        <input type="text" id="username" required autocomplete="username" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1rem;">
+      </div>
+
+      <div>
+        <label for="password" style="display: block; font-weight: 600; margin-bottom: 0.25rem;">סיסמה:</label>
+        <input type="password" id="password" required autocomplete="current-password" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1rem;">
+      </div>
+
+      <button type="submit" id="login-submit-btn" class="btn btn-primary" style="padding: 0.75rem; font-size: 1rem; margin-top: 0.5rem;">התחבר למערכת</button>
+    </form>
+
+    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #edf2f7; font-size: 0.85rem; color: #718096; text-align: center;">
+      <p>פרטי כניסה להדגמה:</p>
+      <p><strong>עורך:</strong> editor / password123</p>
+      <p><strong>כתב:</strong> reporter1 / password123</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const loginForm = document.getElementById('login-form');
+  const loginAlert = document.getElementById('login-alert');
+  const submitBtn = document.getElementById('login-submit-btn');
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginAlert.style.display = 'none';
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'מתחבר...';
+
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        window.location.href = data.redirectTo || '/';
+      } else {
+        loginAlert.textContent = data.error || 'שם משתמש או סיסמה שגויים.';
+        loginAlert.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('Login error', err);
+      loginAlert.textContent = 'שגיאת רשת. אנא נסה שוב.';
+      loginAlert.style.display = 'block';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'התחבר למערכת';
+    }
+  });
+</script>
+
+<%- include('../layout/footer') %>

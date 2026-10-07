@@ -1,0 +1,12 @@
+<%- include('../layout/header') %>
+
+<div class="page-wrapper" style="justify-content: center; align-items: center; min-height: 50vh;">
+  <div style="background: #fff; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.06); text-align: center; max-width: 500px; width: 100%; border-top: 4px solid #c53030;">
+    <h1 style="color: #c53030; font-size: 2.5rem; margin-bottom: 0.5rem;"><%= typeof statusCode !== 'undefined' ? statusCode : 500 %></h1>
+    <h2 style="color: #1a365d; font-size: 1.3rem; margin-bottom: 1rem;"><%= typeof title !== 'undefined' ? title : 'שגיאה במערכת' %></h2>
+    <p style="color: #718096; margin-bottom: 1.5rem;"><%= typeof message !== 'undefined' ? message : 'אירעה שגיאה בעיבוד הבקשה.' %></p>
+    <a href="/" class="btn btn-primary">חזרה לעמוד הראשי &larr;</a>
+  </div>
+</div>
+
+<%- include('../layout/footer') %>

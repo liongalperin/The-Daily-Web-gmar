@@ -1,0 +1,217 @@
+<%- include('../layout/header') %>
+
+<div class="page-wrapper">
+  <main class="main-content">
+    <!-- Full Article (SSR SEO Compliant - Full content is in initial HTML) -->
+    <article class="article-full-card">
+      <div class="card-meta">
+        <span class="card-category"><%= article.category %></span>
+        <span>&bull;</span>
+        <span>פורסם: <%= new Date(article.publicVersion?.publishedAt || article.createdAt).toLocaleDateString('he-IL') %></span>
+        <span>&bull;</span>
+        <span>כתב: <%= article.authorId?.fullName || article.authorId?.username || 'מערכת האתר' %></span>
+        <span>&bull;</span>
+        <span>צפיות: <%= (article.totalViews || 0) + 1 %></span>
+      </div>
+
+      <h1 style="font-size: 2rem; color: #1a365d; line-height: 1.3;"><%= article.publicVersion?.title %></h1>
+
+      <p style="font-size: 1.15rem; font-weight: 600; color: #4a5568; border-right: 4px solid #c53030; padding-right: 0.75rem;">
+        <%= article.publicVersion?.summary || article.publicVersion?.snippet %>
+      </p>
+
+      <% if (article.publicVersion?.imageUrl) { %>
+        <img src="<%= article.publicVersion.imageUrl %>" alt="<%= article.publicVersion.title %>" class="article-hero-img">
+      <% } %>
+
+      <div class="article-content" style="white-space: pre-wrap; line-height: 1.8; font-size: 1.05rem; color: #2d3748;">
+        <%= article.publicVersion?.content %>
+      </div>
+    </article>
+
+    <!-- Comments Section -->
+    <section class="comments-section">
+      <h3 style="color:#1a365d; font-size:1.3rem;">תגובות הקוראים (<span id="comments-count"><%= comments ? comments.length : 0 %></span>)</h3>
+
+      <!-- Rate Limit / Alert Banner -->
+      <div id="comment-alert" class="alert alert-danger" style="display:none;"></div>
+
+      <!-- Add Comment Form -->
+      <form id="comment-form" style="display:flex; flex-direction:column; gap:0.75rem; background:#f7fafc; padding:1rem; border-radius:8px;">
+        <div style="display:flex; flex-direction:row; gap:1rem;">
+          <input type="text" id="comment-author" placeholder="שם מלא (אופציונלי)" style="flex:1; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;">
+        </div>
+        <textarea id="comment-content" placeholder="כתוב את תגובתך כאן..." rows="3" required style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px; font-family:inherit;"></textarea>
+        <div>
+          <button type="submit" id="comment-submit-btn" class="btn btn-primary">שלח תגובה</button>
+          <span id="cooldown-timer" style="display:none; color:#c53030; font-size:0.85rem; font-weight:600; margin-right:0.5rem;"></span>
+        </div>
+      </form>
+
+      <!-- Comments Feed -->
+      <div id="comments-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+        <% if (comments && comments.length > 0) { %>
+          <% comments.forEach(function(c) { %>
+            <div class="comment-item" id="comment-<%= c._id %>">
+              <div class="comment-meta">
+                <strong style="color:#2d3748;"><%= c.authorName || 'אורח' %></strong>
+                <span><%= new Date(c.createdAt).toLocaleString('he-IL') %></span>
+              </div>
+              <p style="color:#4a5568;"><%= c.content %></p>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p id="no-comments-msg" style="color:#718096;">היה הראשון להגיב לכתבה זו!</p>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <aside class="sidebar">
+    <% if (typeof weather !== 'undefined' && weather) { %>
+      <div style="background:#fff; padding:1.25rem; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size:1.1rem; color:#1a365d; margin-bottom:0.75rem;">מזג אוויר מקומי</h3>
+        <div style="display:flex; flex-direction:row; align-items:center; gap:1rem;">
+          <span style="font-size:2.5rem;"><%= weather.icon %></span>
+          <div>
+            <div style="font-size:1.5rem; font-weight:800;"><%= weather.temperature %>°C</div>
+            <div style="color:#718096;"><%= weather.condition %> | <%= weather.city %></div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <div style="background:#fff; padding:1.25rem; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <h3 style="font-size:1.1rem; color:#1a365d; margin-bottom:0.5rem;">שיתוף הכתבה</h3>
+      <p style="color:#718096; font-size:0.9rem;">שתף כתבה זו עם חברים ברשתות החברתיות.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- Dynamic Comment Injection with 3 comments/min Rate Limit Handling -->
+<script>
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, s => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[s]));
+  }
+
+  function getSafeDeviceId() {
+    try {
+      let id = localStorage.getItem('dailyweb_device_id');
+      if (!id) {
+        id = 'dev_' + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('dailyweb_device_id', id);
+      }
+      return id;
+    } catch (e) {
+      return 'dev_guest_' + Math.floor(Math.random() * 10000);
+    }
+  }
+
+  const articleId = '<%= article._id %>';
+  const commentForm = document.getElementById('comment-form');
+  const commentAuthorInput = document.getElementById('comment-author');
+  const commentContentInput = document.getElementById('comment-content');
+  const commentsList = document.getElementById('comments-list');
+  const commentsCountSpan = document.getElementById('comments-count');
+  const commentAlert = document.getElementById('comment-alert');
+  const submitBtn = document.getElementById('comment-submit-btn');
+  const cooldownTimer = document.getElementById('cooldown-timer');
+  const noCommentsMsg = document.getElementById('no-comments-msg');
+  let activeCooldownInterval = null;
+
+  commentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (submitBtn.disabled) return; // Prevent Enter-key bypass during cooldown
+
+    commentAlert.style.display = 'none';
+
+    const content = commentContentInput.value.trim();
+    const authorName = commentAuthorInput.value.trim();
+    const deviceId = getSafeDeviceId();
+
+    if (!content) return;
+
+    try {
+      submitBtn.disabled = true;
+
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId,
+          content,
+          authorName: authorName || 'אורח',
+          deviceId
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.status === 201 && data.success) {
+        // Dynamic injection into DOM without page reload!
+        const c = data.comment;
+        const dateStr = new Date(c.createdAt).toLocaleString('he-IL');
+        const safeAuthor = escapeHtml(c.authorName || 'אורח');
+        const safeContent = escapeHtml(c.content);
+        const safeId = encodeURIComponent(c._id);
+
+        const commentHtml = `
+          <div class="comment-item" id="comment-${safeId}" style="animation: fadeIn 0.3s ease;">
+            <div class="comment-meta">
+              <strong style="color:#2d3748;">${safeAuthor}</strong>
+              <span>${dateStr}</span>
+            </div>
+            <p style="color:#4a5568;">${safeContent}</p>
+          </div>
+        `;
+
+        if (noCommentsMsg) noCommentsMsg.style.display = 'none';
+        commentsList.insertAdjacentHTML('afterbegin', commentHtml);
+        commentContentInput.value = '';
+
+        const currentCount = parseInt(commentsCountSpan.textContent, 10) || 0;
+        commentsCountSpan.textContent = currentCount + 1;
+        submitBtn.disabled = false;
+      } else if (res.status === 429) {
+        // Rate limit exceeded (3 comments/min rule)
+        commentAlert.textContent = data.error || 'חריגה ממגבלת התגובות: ניתן לפרסם לכל היותר 3 תגובות בדקה ממכשיר זה.';
+        commentAlert.style.display = 'block';
+
+        if (activeCooldownInterval) {
+          clearInterval(activeCooldownInterval);
+          activeCooldownInterval = null;
+        }
+
+        let secondsRemaining = parseInt(data.retryAfter, 10) || 60;
+        cooldownTimer.textContent = `ניתן להגיב שוב בעוד ${secondsRemaining} שניות`;
+        cooldownTimer.style.display = 'inline';
+
+        activeCooldownInterval = setInterval(() => {
+          secondsRemaining--;
+          cooldownTimer.textContent = `ניתן להגיב שוב בעוד ${secondsRemaining} שניות`;
+          if (secondsRemaining <= 0) {
+            clearInterval(activeCooldownInterval);
+            activeCooldownInterval = null;
+            cooldownTimer.style.display = 'none';
+            submitBtn.disabled = false;
+            commentAlert.style.display = 'none';
+          }
+        }, 1000);
+      } else {
+        commentAlert.textContent = data.error || 'שגיאה בפרסום התגובה.';
+        commentAlert.style.display = 'block';
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      console.error('Comment submission error', err);
+      commentAlert.textContent = 'שגיאת רשת. אנא נסה שוב.';
+      commentAlert.style.display = 'block';
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+
+<%- include('../layout/footer') %>
