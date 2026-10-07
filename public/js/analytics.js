@@ -1,7 +1,7 @@
 /**
  * Impact Analytics (editor). Vanilla JS + Chart.js (served locally from /vendor/chart.umd.min.js).
  *
- * 1. The editor searches for a published article (GET /api/admin/articles?status=Published&q=).
+ * 1. The editor searches for a live article (GET /api/admin/articles?q=, keeping items with isLive).
  * 2. GET /api/admin/analytics/:articleId returns hourly view counts and the publish/update times:
  *      { viewData: [{ time: ISO, views }], updatePoints: [ISO, ...] }
  * 3. We draw views per hour on a time axis, a labeled vertical line at every update,
@@ -46,7 +46,11 @@
   };
 
   const formatHour = new Intl.DateTimeFormat(DW.lang, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const formatTick = new Intl.DateTimeFormat(DW.lang, { day: 'numeric', month: 'short', hour: '2-digit' });
+  // Axis labels are two lines -- date over time -- so Hebrew month names and digits never
+  // share one line, where the bidi algorithm reorders them ("09 ,4 באוק'").
+  const formatTickDate = new Intl.DateTimeFormat(DW.lang, { day: 'numeric', month: 'short' });
+  const formatTickTime = new Intl.DateTimeFormat(DW.lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const TICK_STEPS_HOURS = [1, 2, 3, 6, 12, 24, 48];
   const formatInt = new Intl.NumberFormat(DW.lang);
 
   const state = { article: null, points: [], updates: [], rangeHours: 0, chart: null };
@@ -112,15 +116,23 @@
     activeIndex = -1;
   }
 
+  function isLive(item) {
+    if (typeof item.isLive === 'boolean') return item.isLive;
+    return Boolean(item.publishedAt || (item.publicVersion && item.publicVersion.publishedAt));
+  }
+
   async function searchArticles() {
     if (searchController) searchController.abort();
     searchController = new AbortController();
-    const params = new URLSearchParams({ status: 'Published', limit: '8' });
+    // Every article with a public version has views, whatever its status: a published article
+    // with an update waiting for approval is Pending but live, and its update markers matter most.
+    const params = new URLSearchParams({ limit: '30' });
     const q = el.input.value.trim();
     if (q) params.set('q', q);
     try {
       const data = await DW.api('/api/admin/articles?' + params.toString(), { signal: searchController.signal });
-      renderResults(Array.isArray(data) ? data : ((data && (data.articles || data.items)) || []));
+      const items = Array.isArray(data) ? data : ((data && (data.articles || data.items)) || []);
+      renderResults(items.filter(isLive).slice(0, 8));
     } catch (error) {
       if (error.name !== 'AbortError') closeResults();
     }
@@ -165,11 +177,12 @@
     const rawPoints = (data && (data.viewData || data.views || data.points)) || [];
     const points = rawPoints
       .map(function (p) { return { x: toTime(p.time || p.timestamp || p.hour), y: Number(p.views !== undefined ? p.views : p.count) || 0 }; })
-      .filter(function (p) { return p.x !== null; })
+      // Stop at now: hours that haven't happened yet can't have views.
+      .filter(function (p) { return p.x !== null && p.x <= Date.now(); })
       .sort(function (a, b) { return a.x - b.x; });
     const updates = ((data && (data.updatePoints || data.publishHistory)) || [])
       .map(function (u) { return toTime(typeof u === 'object' && u !== null ? (u.time || u.date) : u); })
-      .filter(function (u) { return u !== null; })
+      .filter(function (u) { return u !== null && u <= Date.now(); })
       .sort(function (a, b) { return a - b; });
     return { points: points, updates: updates };
   }
@@ -239,6 +252,27 @@
   /* ---------------------------------------------------------------------
      Rendering
      --------------------------------------------------------------------- */
+  /** Ticks at whole hours, using the smallest step that keeps the axis to about 8 labels. */
+  function hourTicks(min, max) {
+    const span = (max - min) / HOUR;
+    const step = TICK_STEPS_HOURS.find(function (h) { return span / h <= 8; }) || TICK_STEPS_HOURS[TICK_STEPS_HOURS.length - 1];
+    const first = new Date(min);
+    first.setMinutes(0, 0, 0);
+    if (first.getTime() < min) first.setHours(first.getHours() + 1);
+    // Align to the step in local time (e.g. 00:00, 06:00, 12:00 for a 6-hour step).
+    while (first.getHours() % Math.min(step, 24) !== 0) first.setHours(first.getHours() + 1);
+    const ticks = [];
+    for (let time = first.getTime(); time <= max; time += step * HOUR) ticks.push({ value: time });
+    return ticks;
+  }
+
+  /** Date on the first tick and wherever the day changes; the time on every tick. */
+  function tickLabel(value, index, ticks) {
+    const previous = index > 0 ? ticks[index - 1].value : null;
+    const newDay = previous === null || new Date(previous).toDateString() !== new Date(value).toDateString();
+    return newDay ? [formatTickTime.format(value), formatTickDate.format(value)] : formatTickTime.format(value);
+  }
+
   function render() {
     const points = visiblePoints();
     el.title.textContent = t('analytics.chartTitle', { title: state.article.title || '' });
@@ -412,7 +446,9 @@
             max: points[points.length - 1].x,
             grid: { color: rule, drawTicks: false },
             border: { color: rule },
-            ticks: { color: ink3, maxTicksLimit: 8, padding: 8, callback: function (value) { return formatTick.format(value); } },
+            // Our own ticks on whole local hours, evenly spaced (a linear scale would pick odd values).
+            afterBuildTicks: function (scale) { scale.ticks = hourTicks(scale.min, scale.max); },
+            ticks: { color: ink3, padding: 8, autoSkip: false, maxRotation: 0, callback: tickLabel },
             title: Object.assign({ text: t('analytics.axisTime') }, axisTitle)
           },
           y: {

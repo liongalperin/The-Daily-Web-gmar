@@ -156,7 +156,11 @@
     return data;
   }
 
-  /** Articles this browser has opened (for the "Read" badge on cards). The server tracks the same per session for the filter. */
+  /**
+   * Articles this browser has opened. The server's per-session list is the source of truth
+   * (it drives the viewed filter and sends `viewed` on each card); this local copy only covers
+   * an article opened a moment ago, before the feed is fetched again (e.g. Back from the article).
+   */
   const viewed = {
     KEY: 'dw:viewed',
     MAX: 1000,
@@ -298,6 +302,9 @@
         self.markIfViewed(card);
       });
 
+      // Tag the entry we arrived on, so Back from a filtered view can restore it.
+      window.history.replaceState({ feed: this.state }, '');
+
       this.bindEvents();
       this.observe();
     }
@@ -345,6 +352,19 @@
         });
       });
 
+      // Back/Forward between filtered views: restore the controls and reload the feed, no new entry.
+      window.addEventListener('popstate', function (event) {
+        const saved = event.state && event.state.feed;
+        if (!saved) return;
+        self.searchInput.value = saved.q;
+        self.form.elements.viewed.value = saved.viewed;
+        self.form.elements.sort.value = saved.sort;
+        self.category = saved.category;
+        self.syncCategory(saved.category);
+        self.state = self.readForm();
+        self.fetchPage(1, 'replace');
+      });
+
       this.ui.retry.addEventListener('click', function () {
         if (self.failedMode === 'replace') self.fetchPage(1, 'replace');
         else self.loadMore();
@@ -376,6 +396,12 @@
 
     setCategory(slug) {
       this.category = slug;
+      this.syncCategory(slug);
+      this.applyFilters();
+    }
+
+    /** Show `slug` as the active section on the chips, the top navigation and the heading. */
+    syncCategory(slug) {
       this.form.querySelectorAll('.chip-sec').forEach(function (chip) {
         chip.setAttribute('aria-pressed', String(chip.value === slug));
       });
@@ -386,15 +412,18 @@
         else link.removeAttribute('aria-current');
       });
       this.heading.textContent = slug ? t('cat.' + slug) : t('feed.title');
-      this.applyFilters();
     }
 
     /** Re-read the controls; if anything changed, replace the feed with page 1 of the new results. */
     applyFilters() {
       const next = this.readForm();
       if (JSON.stringify(next) === JSON.stringify(this.state)) return;
+      // Typing a search refines one entry instead of adding one per pause; any other change
+      // (section, read filter, sort, or starting a new search) gets its own Back step.
+      const onlySearch = ['category', 'viewed', 'sort'].every(function (key) { return next[key] === this.state[key]; }, this);
+      const refining = onlySearch && window.history.state && window.history.state.typing;
       this.state = next;
-      this.updateUrl();
+      this.updateUrl(refining ? 'replace' : 'push', onlySearch);
       this.fetchPage(1, 'replace');
     }
 
@@ -412,14 +441,17 @@
       return params;
     }
 
-    /** Keep the address bar in sync, so the filtered view can be shared or reloaded. */
-    updateUrl() {
+    /** Keep the address bar in sync, so the filtered view can be shared, reloaded and reached with Back. */
+    updateUrl(how, typing) {
       const params = this.buildQuery(1);
       params.delete('page');
       params.delete('limit');
       if (params.get('sort') === 'date') params.delete('sort');
       const query = params.toString();
-      window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : ''));
+      const entry = { feed: this.state, typing: Boolean(typing) };
+      const url = window.location.pathname + (query ? '?' + query : '');
+      if (how === 'push') window.history.pushState(entry, '', url);
+      else window.history.replaceState(entry, '', url);
     }
 
     /**
@@ -506,13 +538,14 @@
       node.querySelector('.card__views').textContent = fmt.number(article.views);
       node.querySelector('.card__comments').textContent = fmt.number(article.commentsCount);
 
+      if (typeof article.viewed === 'boolean') card.dataset.viewed = String(article.viewed);
       this.markIfViewed(card);
       return node;
     }
 
     markIfViewed(card) {
       const badge = card.querySelector('.card__read');
-      if (badge) badge.hidden = !viewed.has(card.dataset.id);
+      if (badge) badge.hidden = !(card.dataset.viewed === 'true' || viewed.has(card.dataset.id));
     }
 
     showStatus(state, mode) {
@@ -767,7 +800,13 @@
       this.statusEl.textContent = texts[state];
     }
 
-    /** If this browser holds a newer copy than the server (e.g. the tab crashed while offline), offer it back. */
+    /**
+     * If this browser holds a newer copy than the server, put it back in the form and save it.
+     * This happens when the page reloads before the last save lands (refresh right after typing),
+     * or after a crash while offline. It is applied automatically -- not just offered -- because
+     * any typing on top of the older server text would overwrite the newer backup for good.
+     * The notice lets the reporter go back to the server's copy instead.
+     */
     offerRestore() {
       const backup = storage.get(this.backupKey, null);
       if (!backup || !backup.values || backup.savedAt <= this.serverUpdatedAt) return;
@@ -777,9 +816,22 @@
       }
 
       const self = this;
+      const serverValues = this.values();
+      const fill = function (values) {
+        for (const name of self.fields) {
+          if (name in values) self.form.elements[name].value = values[name];
+        }
+        // Let listeners (word count, image preview, section color) catch up with the new values.
+        for (const name of self.fields) {
+          self.form.elements[name].dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        self.saveNow();
+      };
+      fill(backup.values);
+
       const box = document.createElement('div');
       box.className = 'alert alert--warning restore';
-      box.setAttribute('role', 'alert');
+      box.setAttribute('role', 'status');
 
       const text = document.createElement('div');
       const title = document.createElement('p');
@@ -791,30 +843,23 @@
 
       const actions = document.createElement('div');
       actions.className = 'restore__actions';
-      const restore = document.createElement('button');
-      restore.type = 'button';
-      restore.className = 'btn btn--primary';
-      restore.textContent = t('autosave.restore');
-      const discard = document.createElement('button');
-      discard.type = 'button';
-      discard.className = 'btn btn--ghost';
-      discard.textContent = t('autosave.discard');
-      actions.append(restore, discard);
+      const keep = document.createElement('button');
+      keep.type = 'button';
+      keep.className = 'btn btn--primary';
+      keep.textContent = t('autosave.restore');
+      const revert = document.createElement('button');
+      revert.type = 'button';
+      revert.className = 'btn btn--ghost';
+      revert.textContent = t('autosave.discard');
+      actions.append(keep, revert);
 
       box.append(text, actions);
       this.form.prepend(box);
 
-      restore.addEventListener('click', function () {
-        for (const name of self.fields) {
-          if (name in backup.values) self.form.elements[name].value = backup.values[name];
-        }
+      keep.addEventListener('click', function () { box.remove(); });
+      revert.addEventListener('click', function () {
         box.remove();
-        self.onInput();
-        self.saveNow();
-      });
-      discard.addEventListener('click', function () {
-        storage.remove(self.backupKey);
-        box.remove();
+        fill(serverValues);
       });
     }
 

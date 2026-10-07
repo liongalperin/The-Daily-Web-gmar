@@ -149,6 +149,12 @@
         empty.hidden = rows.children.length > 0;
       } catch (error) {
         if (error.name === 'AbortError') return;
+        // A failed first page belongs to the new tab/search: drop the previous list so the
+        // highlighted tab never sits above another tab's articles.
+        if (page === 1) {
+          rows.replaceChildren();
+          empty.hidden = true;
+        }
         errorBox.hidden = false;
         more.hidden = page === 1; // a failed "Load more" can be retried with the same button
       } finally {

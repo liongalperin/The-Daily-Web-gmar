@@ -1,16 +1,17 @@
 <%#
-  One feed card. Expects `article`: { _id, title, summary, imageUrl, category, authorName, publishedAt, views, commentsCount }.
+  One feed card. Expects `article`: { _id, title, summary, imageUrl, category, authorName, publishedAt, views, commentsCount, viewed }.
+  `viewed` (optional boolean) comes from the session's viewed list and shows the "Read" badge.
   Keep this markup in sync with <template id="card-template"> in index.ejs (main.js fills that template for Ajax pages).
 %>
 <li class="feed__item">
-  <article class="card" data-id="<%= article._id %>" data-section="<%= article.category %>">
+  <article class="card" data-id="<%= article._id %>" data-section="<%= article.category %>"<% if (typeof article.viewed === 'boolean') { %> data-viewed="<%= article.viewed %>"<% } %>>
     <div class="card__media">
       <img src="<%= article.imageUrl || '/images/placeholder.svg' %>" alt="" width="640" height="360" loading="lazy" decoding="async">
     </div>
     <div class="card__body">
       <div class="kicker">
         <span class="kicker__sec"><%= t('cat.' + article.category) %></span>
-        <span class="badge card__read" hidden><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('card.read') %></span>
+        <span class="badge card__read"<%= article.viewed === true ? '' : ' hidden' %>><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('card.read') %></span>
       </div>
       <h3 class="card__title" dir="auto"><a href="/articles/<%= article._id %>"><%= article.title %></a></h3>
       <p class="card__summary" dir="auto"><%= article.summary %></p>
