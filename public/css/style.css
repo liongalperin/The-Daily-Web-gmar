@@ -687,7 +687,9 @@ ul, ol { margin: 0; padding: 0; }
   flex: 1;
   min-width: 0;
   padding-block: var(--sp-3);
-  padding-inline: calc(var(--sp-3) * 2 + 1.05em) var(--sp-3);
+  /* Same space on both sides: the field is dir="auto", so typed text (and the browser's clear "x")
+     can run either way, while the magnifying glass stays at the page's start edge. */
+  padding-inline: calc(var(--sp-3) * 2 + 1.05em);
   border: 0;
   background: transparent;
   outline: none;
