@@ -1455,7 +1455,7 @@ a.tab { text-decoration: none; }
 }
 
 /* ---------- Login ---------- */
-.auth { display: flex; justify-content: center; padding-block: var(--sp-6); }
+.auth { display: flex; flex-direction: column; align-items: center; padding-block: var(--sp-6); }
 .auth__card {
   display: flex;
   flex-direction: column;

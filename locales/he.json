@@ -124,9 +124,9 @@
   "status.isUpdate": "עדכון לכתבה שפורסמה",
   "status.isNew": "כתבה חדשה",
 
-  "login.title": "כניסה לדסק",
+  "login.title": "כניסה לכתבים ולעורכים",
   "login.eyebrow": "חדר החדשות",
-  "login.lede": "לכתבים ולעורכים. קוראים לא צריכים חשבון.",
+  "login.lede": "אין צורך בחשבון כדי לקרוא את החדשות.",
   "login.username": "שם משתמש",
   "login.password": "סיסמה",
   "login.show": "הצגה",

@@ -124,9 +124,9 @@
   "status.isUpdate": "Update to a published article",
   "status.isNew": "New article",
 
-  "login.title": "Log in to the desk",
+  "login.title": "Reporter and editor login",
   "login.eyebrow": "Newsroom",
-  "login.lede": "For reporters and editors. Readers don't need an account.",
+  "login.lede": "You don't need an account to read the news.",
   "login.username": "Username",
   "login.password": "Password",
   "login.show": "Show",
