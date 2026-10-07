@@ -72,9 +72,10 @@
           <div class="field">
             <label class="field__label" for="f-image"><%= t('editor.image') %></label>
             <div class="image-field">
-              <img class="image-field__thumb" id="f-image-thumb" src="<%= a.imageUrl || '/images/placeholder.svg' %>" alt="" width="72" height="41">
-              <input class="input" type="url" id="f-image" name="imageUrl" value="<%= a.imageUrl %>" placeholder="https://" dir="ltr" inputmode="url"<%= readOnly ? ' readonly' : '' %>>
+              <img class="image-field__thumb" id="f-image-thumb" src="<%= /^(https?:\/\/|\/(?!\/))/i.test(a.imageUrl || '') ? a.imageUrl : '/images/placeholder.svg' %>" alt="" width="72" height="41">
+              <input class="input" type="url" id="f-image" name="imageUrl" value="<%= a.imageUrl %>" placeholder="https://" dir="ltr" inputmode="url" aria-describedby="f-image-error"<%= readOnly ? ' readonly' : '' %>>
             </div>
+            <p class="field__feedback is-error" id="f-image-error" hidden><%= t('editor.imageInvalid') %></p>
           </div>
         </div>
 

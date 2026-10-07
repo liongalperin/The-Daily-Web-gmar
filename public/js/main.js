@@ -267,6 +267,7 @@
 
   const SCROLL_LEAD_PX = 600;  // start loading this far before the user reaches the bottom
   const SEARCH_DELAY_MS = 300; // wait for a pause in typing before searching
+  const KEYBOARD_LEAD_CARDS = 3; // focus on one of the last N cards loads the next page
 
   class FeedController {
     constructor(root) {
@@ -350,6 +351,15 @@
           self.setCategory(link.dataset.category);
           self.root.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
+      });
+
+      // Keyboard users don't scroll the sentinel into view: start loading the next page as soon as
+      // focus reaches one of the last cards, so Tab moves on to new articles, not to the sidebar.
+      this.list.addEventListener('focusin', function (event) {
+        const item = event.target.closest('li');
+        if (!item || item.parentElement !== self.list) return;
+        const items = self.list.children;
+        if (Array.prototype.indexOf.call(items, item) >= items.length - KEYBOARD_LEAD_CARDS) self.loadMore();
       });
 
       // Back/Forward between filtered views: restore the controls and reload the feed, no new entry.
@@ -488,6 +498,7 @@
       } catch (error) {
         if (error.name === 'AbortError' || requestId !== this.requestId) return;
         this.failedMode = mode;
+        this.ui.error.querySelector('span').textContent = error.status >= 500 ? t('error.server') : t('feed.error');
         this.showStatus('error');
       } finally {
         if (requestId === this.requestId) {
@@ -521,7 +532,7 @@
       card.classList.add('is-new');
 
       const img = node.querySelector('.card__media img');
-      img.src = article.imageUrl || '/images/placeholder.svg';
+      img.src = /^(https?:\/\/|\/(?!\/))/i.test(article.imageUrl || '') ? article.imageUrl : '/images/placeholder.svg';
       img.addEventListener('error', function () { img.src = '/images/placeholder.svg'; }, { once: true });
 
       node.querySelector('.kicker__sec').textContent = t('cat.' + article.category);
@@ -881,8 +892,25 @@
      Boot
      ====================================================================== */
 
+  /**
+   * User-facing text for a failed DW.api() call, so "the server failed" is never reported as
+   * "check your connection":
+   *   status 0 (no response)  -> the connection
+   *   5xx                     -> a problem on our side, try again shortly
+   *   4xx with { error }      -> the API's own message (it describes what's wrong)
+   *   anything else           -> `fallback`, or a generic message
+   */
+  function errorText(error, fallback) {
+    const status = error ? error.status : undefined;
+    if (status === 0) return t('error.network');
+    if (status >= 500) return t('error.server');
+    if (status >= 400 && error.message) return error.message;
+    return fallback || t('desk.actionFailed');
+  }
+
   window.DW = {
     lang: LANG,
+    errorText: errorText,
     t: t,
     fmt: fmt,
     storage: storage,

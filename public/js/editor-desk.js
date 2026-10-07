@@ -17,7 +17,7 @@
   const PAGE_SIZE = 20;
 
   function errorMessage(error) {
-    return error && error.status >= 400 && error.status < 500 && error.message ? error.message : t('desk.actionFailed');
+    return DW.errorText(error);
   }
 
   function statusBadge(status) {
@@ -155,6 +155,7 @@
           rows.replaceChildren();
           empty.hidden = true;
         }
+        errorBox.querySelector('span').textContent = errorMessage(error);
         errorBox.hidden = false;
         more.hidden = page === 1; // a failed "Load more" can be retried with the same button
       } finally {
@@ -370,6 +371,14 @@
   function initReview(root) {
     const id = root.dataset.articleId;
     const compare = document.getElementById('compare');
+
+    // A broken image link shows the placeholder, like on the feed, not the browser's broken-image icon.
+    const image = compare.querySelector('.review__image');
+    if (image) {
+      const usePlaceholder = function () { image.src = '/images/placeholder.svg'; };
+      if (image.complete && image.naturalWidth === 0) usePlaceholder();
+      else image.addEventListener('error', usePlaceholder, { once: true });
+    }
 
     ['title', 'summary', 'content'].forEach(function (field) {
       const oldEl = compare.querySelector('[data-diff="' + field + '"][data-side="old"]');

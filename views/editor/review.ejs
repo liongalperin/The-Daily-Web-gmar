@@ -12,6 +12,10 @@
 <%
   const a = articleView(article);
   const compare = a.isLive && (a.status === 'Pending' || a.hasDraftChanges);
+  // An update the reporter is still working on (not submitted) is shown, but not as "awaiting approval".
+  const unsubmitted = compare && a.status !== 'Pending';
+  const newStatus = unsubmitted ? 'Draft' : (compare ? 'Pending' : a.status);
+  const imageUrl = /^(https?:\/\/|\/(?!\/))/i.test(a.imageUrl || '') ? a.imageUrl : '';
   const FIELDS = ['title', 'summary', 'content'];
 %>
 <%- include('../partials/head', { pageTitle: a.title || t('desk.untitled'), pageScripts: ['/js/editor-desk.js'] }) %>
@@ -51,12 +55,12 @@
             <div class="compare__body" dir="auto" data-diff="content" data-side="old"><% paragraphs(a.published.content).forEach(function (p) { %><p><%= p %></p><% }) %></div>
           </article>
         <% } %>
-        <article class="compare__col" data-status="<%= compare ? 'Pending' : a.status %>">
+        <article class="compare__col" data-status="<%= newStatus %>">
           <p class="compare__label">
-            <span><%= compare ? t('review.pending') : t('review.submitted') %></span>
-            <% if (compare) { %><span class="status" data-status="Pending"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><%= t('review.newVersion') %></span><% } %>
+            <span><%= unsubmitted ? t('review.unsubmitted') : compare ? t('review.pending') : t('review.submitted') %></span>
+            <% if (unsubmitted) { %><span class="status" data-status="Draft"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><%= t('review.notSubmitted') %></span><% } else if (compare) { %><span class="status" data-status="Pending"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><%= t('review.newVersion') %></span><% } %>
           </p>
-          <% if (a.imageUrl) { %><img class="review__image" src="<%= a.imageUrl %>" alt="" loading="lazy"><% } %>
+          <% if (imageUrl) { %><img class="review__image" src="<%= imageUrl %>" alt="" loading="lazy"><% } %>
           <h2 class="compare__title" dir="auto" data-diff="title" data-side="new"><%= a.title || t('desk.untitled') %></h2>
           <p class="compare__dek" dir="auto" data-diff="summary" data-side="new"><%= a.summary %></p>
           <div class="compare__body" dir="auto" data-diff="content" data-side="new"><% paragraphs(a.content).forEach(function (p) { %><p><%= p %></p><% }) %></div>

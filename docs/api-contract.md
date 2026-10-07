@@ -80,6 +80,7 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 ### `PUT /api/articles/:id/auto-save`
 *   Payload: any of `{ title, summary, content, category, imageUrl }` (whatever fields the editor form has).
 *   `200` returns `{ updatedAt }`.
+*   `imageUrl` may be saved as typed (it's a draft), but **submitting** (`PATCH .../status` → `Pending`) and publishing must reject an `imageUrl` that isn't empty, a full `http://` / `https://` link, or a path on this site starting with a single `/` (e.g. seeded `/images/...`): `400 { error }`. The editor page already blocks this, but the server must not trust the browser.
 *   `401` means the session expired (auto-save stops and asks the reporter to log in). `403`/`404` mean the reporter isn't allowed (auto-save stops).
 *   For the reporter editor page: render the form as `<form data-autosave data-article-id data-updated-at>` (`updatedAt` of the draft), so `main.js` attaches auto-save and can detect a newer local backup.
 

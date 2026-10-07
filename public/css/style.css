@@ -34,14 +34,14 @@
   /* Section colors: one per category */
   --sec-news: #c8102e;
   --sec-politics: #1d4ed8;
-  --sec-business: #b45309;
+  --sec-business: #92400e;
   --sec-tech: #0e7490;
-  --sec-sports: #15803d;
+  --sec-sports: #157a3b;
   --sec-culture: #7e22ce;
-  --sec-transport: #ea580c;
+  --sec-transport: #b8430c;
 
   /* Status */
-  --ok: #15803d;
+  --ok: #157a3b;
   --warn: #8a2c0d;
   --warn-bg: #fbeee8;
   --warn-line: #e9b8a6;
@@ -327,6 +327,7 @@ ul, ol { margin: 0; padding: 0; }
 .input::placeholder { color: var(--ink-3); }
 .input:hover { border-color: var(--ink-3); }
 .input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px var(--stamp-soft), inset 0 -2px 0 var(--stamp); }
+.input[aria-invalid="true"] { border-color: var(--st-returned); }
 .input--area { min-height: 120px; resize: vertical; line-height: 1.6; }
 
 .select-wrap { position: relative; display: inline-flex; }
@@ -611,8 +612,18 @@ ul, ol { margin: 0; padding: 0; }
 
 @media (max-width: 599px) {
   .masthead__tagline { display: none; }
-  .tool-btn span { display: none; }
-  .tool-btn { padding: 8px; }
+  /* Icon-only on phones: the text stays in the accessibility tree (visually hidden, not display:none),
+     so screen readers still announce "Editor desk" / "Log out". 44px is the minimum touch target. */
+  .tool-btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .tool-btn { justify-content: center; min-width: 44px; min-height: 44px; padding: 10px; }
   .masthead__brand { padding-block: var(--sp-3) var(--sp-2); }
 }
 
@@ -1191,8 +1202,8 @@ img[src$="placeholder.svg"] { filter: var(--placeholder-filter); }
 /* Article status colors (state, not section identity). Always shown with an icon + label. */
 :root {
   --st-draft: #6b6b68;
-  --st-pending: #b45309;
-  --st-published: #15803d;
+  --st-pending: #92400e;
+  --st-published: #157a3b;
   --st-returned: #b91c1c;
   --ins-bg: rgba(21, 128, 61, 0.14);
   --del-bg: rgba(185, 28, 28, 0.12);

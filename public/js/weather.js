@@ -6,9 +6,13 @@
  *
  * Caching (the spec allows data up to 15 minutes old, for thousands of concurrent readers):
  *   - The widget asks our server first (GET /api/weather?city=). The server keeps one reading
- *     per city for 15 minutes, so Open-Meteo gets at most 4 calls per city per 15 minutes,
+ *     per city for 15 minutes, so Open-Meteo gets at most one call per city every 15 minutes,
  *     however many readers there are.
- *   - Only if that endpoint is missing or failing does the browser call Open-Meteo itself.
+ *   - Only while that route doesn't exist yet (404) does the browser call Open-Meteo itself.
+ *     A server error does NOT send browsers to Open-Meteo: with thousands of readers that would
+ *     turn one failing call into thousands. The widget shows its last reading as stale instead.
+ *   - If Open-Meteo is down, the server may answer with its last reading. Anything older than
+ *     15 minutes is shown as stale, never as current.
  *   - Each reading is also stored in localStorage per city with its fetch time.
  *   - A cached reading younger than 15 minutes is shown without any network request, so one
  *     browser makes at most ~4 requests per hour, however many pages it opens.
@@ -103,7 +107,7 @@
     try {
       return await fetchFromServer(city, signal);
     } catch (error) {
-      if (error.name === 'AbortError') throw error;
+      if (error.status !== 404) throw error;
       return fetchFromOpenMeteo(city, signal);
     }
   }
@@ -153,8 +157,11 @@
     try {
       const reading = await fetchReading(city, controller.signal);
       DW.storage.set(cacheKey(city), reading);
-      if (el.city.value === city) render(reading, 'live');
-      scheduleRefresh(city, MAX_AGE_MS);
+      // The server's reading can be old (it serves its last one while Open-Meteo is down).
+      const readingAge = Date.now() - reading.fetchedAt;
+      const fresh = readingAge < MAX_AGE_MS;
+      if (el.city.value === city) render(reading, fresh ? 'live' : 'stale');
+      scheduleRefresh(city, fresh ? MAX_AGE_MS - readingAge : 60 * 1000);
     } catch (error) {
       if (error.name === 'AbortError') return;
       if (cached) {

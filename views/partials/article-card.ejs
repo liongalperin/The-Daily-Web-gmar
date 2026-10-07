@@ -6,7 +6,7 @@
 <li class="feed__item">
   <article class="card" data-id="<%= article._id %>" data-section="<%= article.category %>"<% if (typeof article.viewed === 'boolean') { %> data-viewed="<%= article.viewed %>"<% } %>>
     <div class="card__media">
-      <img src="<%= article.imageUrl || '/images/placeholder.svg' %>" alt="" width="640" height="360" loading="lazy" decoding="async">
+      <img src="<%= /^(https?:\/\/|\/(?!\/))/i.test(article.imageUrl || '') ? article.imageUrl : '/images/placeholder.svg' %>" alt="" width="640" height="360" loading="lazy" decoding="async">
     </div>
     <div class="card__body">
       <div class="kicker">

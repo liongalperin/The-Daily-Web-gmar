@@ -30,8 +30,7 @@
   }
 
   function errorMessage(error) {
-    // 4xx messages come from our own API and describe the problem; anything else gets the generic text.
-    return error && error.status >= 400 && error.status < 500 && error.message ? error.message : t('desk.actionFailed');
+    return DW.errorText(error);
   }
 
   function submitArticle(id) {
@@ -134,6 +133,20 @@
   /* ======================================================================
      Article editor page
      ====================================================================== */
+  /**
+   * The only image URLs readers' browsers should be asked to load: a full http(s) link, or a
+   * path on this site such as "/images/..." (seeded articles use those).
+   */
+  function isWebUrl(value) {
+    if (/^\/(?!\/)/.test(value)) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (error) {
+      return false;
+    }
+  }
+
   function initEditor(form) {
     const content = form.elements.content;
     const counter = document.getElementById('word-count');
@@ -160,18 +173,41 @@
     });
     imageInput.addEventListener('input', DW.debounce(function () {
       const url = imageInput.value.trim();
-      thumb.src = /^https?:\/\//i.test(url) ? url : '/images/placeholder.svg';
+      thumb.src = isWebUrl(url) ? url : '/images/placeholder.svg';
     }, 400));
+
+    // Only empty, a full http(s) link or a path on this site is allowed (no "javascript:", "data:", or plain text).
+    // The draft still auto-saves so no other typing is lost, but submitting waits until it's fixed.
+    const imageError = document.getElementById('f-image-error');
+    function imageValid() {
+      const url = imageInput.value.trim();
+      return url === '' || isWebUrl(url);
+    }
+    function checkImage() {
+      const valid = imageValid();
+      imageError.hidden = valid;
+      if (valid) imageInput.removeAttribute('aria-invalid');
+      else imageInput.setAttribute('aria-invalid', 'true');
+      updateSubmit();
+      return valid;
+    }
+    imageInput.addEventListener('input', DW.debounce(checkImage, 400));
+    imageInput.addEventListener('blur', checkImage);
 
     // The page's top rule takes the section color, like on the public site.
     category.addEventListener('change', function () { form.dataset.section = category.value; });
 
-    if (!submit) return;
-
     // A published article can only be re-submitted once something changed.
-    if (submit.hasAttribute('data-enable-on-change')) {
-      form.addEventListener('input', function () { submit.disabled = false; }, { once: true });
+    let waitingForChange = Boolean(submit && submit.hasAttribute('data-enable-on-change'));
+    function updateSubmit() {
+      if (submit) submit.disabled = waitingForChange || !imageValid();
     }
+    if (waitingForChange) {
+      form.addEventListener('input', function () { waitingForChange = false; updateSubmit(); }, { once: true });
+    }
+    checkImage();
+
+    if (!submit) return;
 
     function setFeedback(text, kind) {
       feedback.textContent = text;
@@ -180,6 +216,11 @@
     }
 
     submit.addEventListener('click', async function () {
+      if (!checkImage()) {
+        setFeedback(t('editor.fixImage'), 'error');
+        imageInput.focus();
+        return;
+      }
       const restore = busy(submit);
       setFeedback('');
 

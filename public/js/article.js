@@ -18,6 +18,16 @@
 
   DW.viewed.add(story.dataset.articleId);
 
+  // A main image that fails to load is removed, so readers never see a broken-image icon.
+  // It may have failed before this script ran, hence the naturalWidth check.
+  const figure = story.querySelector('.story__figure');
+  const mainImage = figure && figure.querySelector('img');
+  if (mainImage) {
+    const drop = function () { figure.remove(); };
+    if (mainImage.complete && mainImage.naturalWidth === 0) drop();
+    else mainImage.addEventListener('error', drop, { once: true });
+  }
+
   const form = document.getElementById('comment-form');
   if (!form) return;
 

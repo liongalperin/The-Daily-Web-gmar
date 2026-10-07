@@ -210,6 +210,7 @@
       show('report');
       render();
     } catch (error) {
+      document.getElementById('an-error-text').textContent = DW.errorText(error, t('analytics.error'));
       show('error');
     }
   }
@@ -425,7 +426,9 @@
           backgroundColor: css('--chart-fill'),
           fill: 'origin',
           borderWidth: 2,
-          tension: 0.25,
+          // Straight segments: a smoothed curve bends upward before the update marker, so a jump
+          // caused by the update would look like it started earlier.
+          tension: 0,
           pointRadius: points.length > 60 ? 0 : 2,
           pointHoverRadius: 5,
           pointHoverBorderWidth: 2,

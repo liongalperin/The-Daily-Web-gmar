@@ -7,8 +7,9 @@
   const text = typeof message !== 'undefined' && message
     ? message
     : (code === 404 ? t('error.notFound') : code === 403 ? t('error.forbidden') : t('desk.actionFailed'));
+  const title = code === 404 ? t('error.titleNotFound') : code === 403 ? t('error.titleForbidden') : t('error.title');
 %>
-<%- include('partials/head', { pageTitle: t('error.title') }) %>
+<%- include('partials/head', { pageTitle: title }) %>
 <body class="page-error">
 <%- include('partials/header') %>
 
@@ -16,7 +17,7 @@
   <main class="layout__main auth" id="content">
     <div class="auth__card">
       <p class="page-head__eyebrow"><%= code %></p>
-      <h1 class="auth__title"><%= t('error.title') %></h1>
+      <h1 class="auth__title"><%= title %></h1>
       <p class="auth__lede"><%= text %></p>
       <a class="btn btn--primary" href="/"><%= t('error.back') %></a>
     </div>

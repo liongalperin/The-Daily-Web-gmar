@@ -1,10 +1,11 @@
 <%#
   Site header: masthead (date, preferences, account) + sticky section navigation.
-  Optional locals: user ({ username, role }), activeCategory (slug).
+  Optional locals: user ({ username, role }), activeCategory (slug; '' = the unfiltered feed, so
+  Home is highlighted). Pages that don't pass it (login, newsroom, error) highlight no link.
 %>
 <%
   const currentUser = (typeof user !== 'undefined' && user) ? user : null;
-  const active = (typeof activeCategory !== 'undefined' && activeCategory) ? activeCategory : '';
+  const active = typeof activeCategory === 'string' ? activeCategory : null;
 %>
 <a class="skip-link" href="#content"><%= t('site.skip') %></a>
 <%- include('icons') %>
