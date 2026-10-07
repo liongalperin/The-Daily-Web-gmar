@@ -52,6 +52,11 @@
       <button class="btn btn--primary" type="submit">
         <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><%= t('login.submit') %>
       </button>
+
+      <div class="auth__demo-hints" style="margin-top: 1.25rem; padding: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.85rem; color: var(--color-muted); text-align: center;">
+        <p style="margin: 0 0 0.25rem; font-weight: 600;"><%= lang === 'en' ? 'Demo Staff Credentials:' : 'פרטי כניסה להדגמה:' %></p>
+        <p style="margin: 0;"><strong><%= lang === 'en' ? 'Editor:' : 'עורך:' %></strong> <code>editor</code> / <code>password123</code> &nbsp;|&nbsp; <strong><%= lang === 'en' ? 'Reporter:' : 'כתב:' %></strong> <code>reporter1</code> / <code>password123</code></p>
+      </div>
     </form>
   </main>
 </div>

@@ -12,7 +12,8 @@ const TEST_FILES = [
   'tests/phase2-auth-security.test.js',
   'tests/phase3-api-endpoints.test.js',
   'tests/phase4-seed-verification.test.js',
-  'tests/phase5-views-integration.test.js'
+  'tests/phase5-views-integration.test.js',
+  'tests/e2e-live-verification.js'
 ];
 
 async function runTest(file) {

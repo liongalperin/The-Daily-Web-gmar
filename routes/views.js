@@ -7,7 +7,6 @@ const express = require('express');
 const router = express.Router();
 const viewController = require('../controllers/viewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const logger = require('../config/logger');
 
 // Prevent browser caching on authenticated desks (bfcache protection)
 function noCache(req, res, next) {
@@ -20,27 +19,26 @@ function noCache(req, res, next) {
 router.get('/', viewController.renderHome);
 router.get('/articles/:id', viewController.renderArticle);
 router.get('/login', viewController.renderLogin);
+router.post('/login', viewController.handleLogin);
 
-// SSR / Fallback Logout Route
-router.get('/logout', (req, res) => {
-  if (req.session) {
-    const userId = req.session.user?.id || 'ANONYMOUS';
-    req.session.destroy((err) => {
-      if (err) logger.error('Error destroying session on GET /logout', { error: err.message });
-      res.clearCookie('connect.sid', { path: '/' });
-      return res.redirect('/');
-    });
-  } else {
-    return res.redirect('/');
-  }
-});
+// Logout Routes
+router.post('/logout', viewController.handleLogout);
+router.get('/logout', viewController.handleLogout);
 
-// Reporter Desk (Accessible by Reporters and Editors)
+// Reporter Dashboard & Edit (Dev 2 UI)
+router.get('/reporter', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterDashboard);
+router.get('/reporter/dashboard', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterDashboard);
+router.get('/reporter/articles/:id/edit', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterEdit);
+
+// Editor Dashboard, Review & Analytics (Dev 2 UI)
+router.get('/editor', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorDashboard);
+router.get('/editor/dashboard', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorDashboard);
+router.get('/editor/articles/:id', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorReview);
+router.get('/editor/articles/:id/edit', requireAuth, requireRole('Editor'), noCache, viewController.renderReporterEdit);
+router.get('/editor/analytics', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorAnalytics);
+
+// Compatibility Desks
 router.get('/reporter/desk', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterDesk);
-router.get('/reporter', requireAuth, requireRole('Reporter', 'Editor'), (req, res) => res.redirect('/reporter/desk'));
-
-// Editor Desk (Editor-only)
 router.get('/editor/desk', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorDesk);
-router.get('/editor', requireAuth, requireRole('Editor'), (req, res) => res.redirect('/editor/desk'));
 
 module.exports = router;
