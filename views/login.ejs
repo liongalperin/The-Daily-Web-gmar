@@ -41,7 +41,8 @@
 
       <div class="field">
         <label class="field__label" for="login-password"><%= t('login.password') %></label>
-        <div class="password">
+        <%# dir="ltr": the password is typed left-to-right, so the Show button and its reserved space must be on the same side %>
+        <div class="password" dir="ltr">
           <input class="input" type="password" id="login-password" name="password" autocomplete="current-password" required dir="ltr"<%= failed ? ' autofocus' : '' %>>
           <button type="button" class="password__toggle" data-password-toggle="login-password" aria-pressed="false"
                   data-label-show="<%= t('login.show') %>" data-label-hide="<%= t('login.hide') %>"><%= t('login.show') %></button>
