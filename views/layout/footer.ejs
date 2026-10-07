@@ -1,0 +1,30 @@
+  <footer class="site-footer">
+    <p>&copy; <%= new Date().getFullYear() %> The Daily Web - מערכת ניהול חדשות מתקדמת. פרויקט גמר פיתוח אפליקציות אינטרנטיות.</p>
+  </footer>
+
+  <script>
+    // Universal logout handler
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/auth/logout', { method: 'POST' });
+          if (res.ok) window.location.href = '/';
+        } catch (e) {
+          console.error('Logout error', e);
+        }
+      });
+    }
+
+    // Persist unique client deviceId in localStorage if absent
+    try {
+      if (!localStorage.getItem('dailyweb_device_id')) {
+        const randomId = 'dev_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
+        localStorage.setItem('dailyweb_device_id', randomId);
+      }
+    } catch (e) {
+      // Ignore security errors in strict privacy mode
+    }
+  </script>
+</body>
+</html>

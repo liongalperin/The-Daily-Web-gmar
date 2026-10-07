@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title : 'The Daily Web' %></title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-container">
+      <div class="logo-area">
+        <a href="/" class="logo-title">The Daily Web</a>
+        <span class="logo-badge">חדשות</span>
+      </div>
+
+      <nav class="main-nav">
+        <a href="/" class="nav-link">ראשי</a>
+        <a href="/?category=news" class="nav-link">חדשות</a>
+        <a href="/?category=tech" class="nav-link">טכנולוגיה</a>
+        <a href="/?category=business" class="nav-link">כלכלה</a>
+        <a href="/?category=politics" class="nav-link">פוליטיקה</a>
+        <a href="/?category=sports" class="nav-link">ספורט</a>
+      </nav>
+
+      <div class="header-tools">
+        <% if (typeof weather !== 'undefined' && weather) { %>
+          <div class="weather-widget" id="header-weather">
+            <span class="weather-icon"><%= weather.icon %></span>
+            <span><%= weather.city %>: <%= weather.temperature %>°C (<%= weather.condition %>)</span>
+          </div>
+        <% } %>
+
+        <% if (locals.currentUser) { %>
+          <% if (locals.currentUser.role === 'Editor') { %>
+            <a href="/editor/desk" class="btn btn-primary">דסק עורך</a>
+          <% } else if (locals.currentUser.role === 'Reporter') { %>
+            <a href="/reporter/desk" class="btn btn-primary">דסק כתב</a>
+          <% } %>
+          <button id="logout-btn" class="btn" style="background:#e2e8f0; font-size:0.85rem;">התנתק</button>
+        <% } else { %>
+          <a href="/login" class="btn btn-primary">כניסת צוות</a>
+        <% } %>
+      </div>
+    </div>
+  </header>
