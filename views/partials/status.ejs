@@ -1,0 +1,3 @@
+<%# Status badge (color + icon + text, never color alone). Expects `status`: Draft | Pending | Published | Returned. %>
+<% const STATUS_ICONS = { Draft: 'i-file', Pending: 'i-clock', Published: 'i-check', Returned: 'i-undo' }; %>
+<span class="status" data-status="<%= status %>"><svg class="icon" aria-hidden="true"><use href="#<%= STATUS_ICONS[status] || 'i-file' %>"/></svg><span class="status__label"><%= t('status.' + status) %></span></span>

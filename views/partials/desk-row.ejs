@@ -1,0 +1,23 @@
+<%#
+  One row in the editor desk list. Expects `a` = articleView(article).
+  Keep in sync with <template id="desk-row-template"> in editor/dashboard.ejs (editor-desk.js fills it for Ajax pages).
+%>
+<li class="row" data-id="<%= a.id %>" data-status="<%= a.status %>">
+  <div class="row__main">
+    <span>
+      <%- include('status', { status: a.status }) %>
+      <span class="row__flag"<%= a.status === 'Pending' ? '' : ' hidden' %>>· <%= a.isLive ? t('status.isUpdate') : t('status.isNew') %></span>
+    </span>
+    <h2 class="row__title" dir="auto"><a href="/editor/articles/<%= a.id %>"><%= a.title || t('desk.untitled') %></a></h2>
+    <div class="row__meta">
+      <span class="kicker__sec" data-section="<%= a.category %>"><%= a.category ? t('cat.' + a.category) : '' %></span>
+      <span class="row__author"><%= t('desk.by', { name: a.authorName }) %></span>
+      <time class="row__time" datetime="<%= isoDate(a.updatedAt) %>"><%= formatDate(a.updatedAt) %></time>
+    </div>
+  </div>
+  <div class="row__side">
+    <a class="btn btn--small <%= a.status === 'Pending' ? 'btn--primary' : 'btn--ghost' %> row__review" href="/editor/articles/<%= a.id %>"><%= a.status === 'Pending' ? t('desk.review') : t('desk.view') %></a>
+    <a class="btn btn--small btn--ghost row__analytics" href="/editor/analytics?article=<%= a.id %>" aria-label="<%= t('desk.analytics') %>" title="<%= t('desk.analytics') %>"<%= a.isLive ? '' : ' hidden' %>><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg></a>
+    <button type="button" class="btn btn--small btn--danger row__delete" data-delete aria-label="<%= t('desk.delete') %>" title="<%= t('desk.delete') %>"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
+  </div>
+</li>
