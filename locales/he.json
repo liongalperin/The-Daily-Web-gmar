@@ -2,7 +2,6 @@
   "site.name": "The Daily Web",
   "site.tagline": "חדשות עצמאיות, מתעדכנות מסביב לשעון",
   "site.skip": "דילוג לתוכן",
-
   "nav.home": "ראשי",
   "nav.sections": "מדורים",
   "nav.menu": "תפריט",
@@ -16,7 +15,6 @@
   "nav.theme": "ערכת צבעים",
   "nav.themeLight": "יום",
   "nav.themeDark": "לילה",
-
   "cat.all": "הכול",
   "cat.news": "חדשות",
   "cat.politics": "פוליטיקה",
@@ -25,7 +23,6 @@
   "cat.sports": "ספורט",
   "cat.culture": "תרבות",
   "cat.transport": "תחבורה",
-
   "feed.title": "החדשות האחרונות",
   "feed.searchLabel": "חיפוש כתבות",
   "feed.searchPlaceholder": "חיפוש בכותרות…",
@@ -44,17 +41,14 @@
   "feed.error": "לא הצלחנו לטעון כתבות. בדקו את החיבור ונסו שוב.",
   "feed.retry": "ניסיון חוזר",
   "feed.results": "{count} כתבות",
-
   "card.by": "מאת",
   "card.read": "נקראה",
   "card.views": "צפיות",
   "card.comments": "תגובות",
-
   "article.by": "מאת {name}",
   "article.published": "פורסם",
   "article.views": "{count} צפיות",
   "article.back": "חזרה לפיד החדשות",
-
   "comments.title": "תגובות",
   "comments.count": "{count} תגובות",
   "comments.empty": "עדיין אין תגובות. היו הראשונים להגיב.",
@@ -72,7 +66,6 @@
   "comments.invalid": "יש לכתוב תגובה לפני הפרסום.",
   "comments.error": "התגובה לא פורסמה. בדקו את החיבור ונסו שוב.",
   "comments.charsLeft": "נותרו {count} תווים",
-
   "weather.title": "מזג האוויר",
   "weather.city": "עיר",
   "weather.wind": "רוח",
@@ -96,10 +89,11 @@
   "wx.showers": "ממטרים",
   "wx.snow": "שלג",
   "wx.storm": "סופת רעמים",
-
   "autosave.idle": "כל השינויים נשמרו",
   "autosave.saving": "שומרים…",
   "autosave.saved": "נשמר ב־{time}",
+  "autosave.save": "שמירה",
+  "autosave.unsaved": "יש שינויים שלא נשמרו",
   "autosave.offline": "החיבור נותק – מנסים לשמור שוב",
   "autosave.retrying": "החיבור נותק – ניסיון שמירה נוסף בעוד {seconds} שניות",
   "autosave.unauthorized": "פג תוקף ההתחברות. יש להתחבר מחדש כדי להמשיך לשמור.",
@@ -108,13 +102,10 @@
   "autosave.restoreBody": "בדפדפן הזה שמור עותק חדש יותר של הטיוטה מזה שבשרת, מ־{time}.",
   "autosave.restore": "שחזור העותק שלי",
   "autosave.discard": "ביטול",
-
   "footer.rights": "© {year} The Daily Web. נבנה כפרויקט גמר אוניברסיטאי.",
   "footer.weatherCredit": "נתוני מזג אוויר: Open-Meteo.com",
-
   "error.title": "משהו השתבש",
   "error.notFound": "לא מצאנו את הדף הזה.",
-
   "status.Draft": "בהכנה",
   "status.Pending": "ממתינה לאישור עורך",
   "status.Published": "פורסמה",
@@ -127,7 +118,6 @@
   "status.unsubmittedChanges": "שינויים שלא הוגשו",
   "status.isUpdate": "עדכון לכתבה שפורסמה",
   "status.isNew": "כתבה חדשה",
-
   "login.title": "כניסה לכתבים ולעורכים",
   "login.eyebrow": "חדר החדשות",
   "login.lede": "אין צורך בחשבון כדי לקרוא את החדשות.",
@@ -138,7 +128,6 @@
   "login.submit": "כניסה",
   "login.error": "שם המשתמש או הסיסמה שגויים.",
   "login.required": "יש להזין שם משתמש וסיסמה.",
-
   "desk.untitled": "כתבה ללא כותרת",
   "desk.words": "{count} מילים",
   "desk.readTime": "כ־{count} דקות קריאה",
@@ -156,7 +145,6 @@
   "desk.loadMore": "טעינת כתבות נוספות",
   "desk.empty": "אין כאן כתבות עדיין.",
   "desk.analytics": "ניתוח השפעה",
-
   "reporter.eyebrow": "{name} · כתב/ת",
   "reporter.title": "הכתבות שלי",
   "reporter.new": "כתבה חדשה",
@@ -169,7 +157,6 @@
   "reporter.locked": "נעולה לעריכה בזמן שהעורך בודק אותה",
   "reporter.editorNote": "הערת העורך:",
   "reporter.emptyAll": "עוד לא כתבת כתבות. אפשר להתחיל ב„כתבה חדשה”.",
-
   "editor.back": "הכתבות שלי",
   "editor.backDesk": "דסק העורכים",
   "editor.backReview": "חזרה לבדיקה",
@@ -191,12 +178,10 @@
   "editor.pendingNote": "הכתבה ממתינה לעורך. אפשר יהיה לערוך אותה שוב אחרי שתאושר או תוחזר.",
   "editor.editorMode": "את/ה עורכ/ת את הכתבה כעורך. השינויים נשמרים אוטומטית ויתפרסמו כשתאשר/י את הכתבה.",
   "editor.submitFailed": "השינויים האחרונים עדיין לא נשמרו, ולכן הכתבה לא הוגשה. נסו שוב בעוד רגע.",
-
   "desk.eyebrow": "דסק העורכים",
   "desk.title": "כל הכתבות",
   "desk.searchPlaceholder": "חיפוש בכותרות…",
   "desk.review": "בדיקה",
-
   "review.titleUpdate": "בדיקה: עדכון לכתבה שפורסמה",
   "review.titleNew": "בדיקה: כתבה חדשה",
   "review.title": "כתבה",
@@ -221,7 +206,6 @@
   "review.returned": "הכתבה הוחזרה לכתב עם ההערה שלך.",
   "review.notPending": "אפשר לפרסם או להחזיר רק כתבות שממתינות לאישור.",
   "review.viewLive": "צפייה באתר",
-
   "analytics.eyebrow": "דסק העורכים",
   "analytics.title": "ניתוח השפעה",
   "analytics.pick": "חיפוש כתבה שפורסמה",
@@ -257,7 +241,6 @@
   "analytics.colViews": "צפיות",
   "analytics.updateMark": "עדכון",
   "analytics.chartAria": "גרף קווי של צפיות לשעה, עם סימון בכל עדכון שפורסם",
-
   "error.back": "חזרה לעמוד הראשי",
   "error.forbidden": "אין לך הרשאה לצפות בדף הזה."
 }

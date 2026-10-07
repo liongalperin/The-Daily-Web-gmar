@@ -5,9 +5,11 @@
     article - the Article document (draftVersion is edited; publicVersion is what readers see)
     user    - { username, role }
 
-  There is no Save button. main.js finds <form data-autosave> and silently PUTs changes to
-  /api/articles/:id/auto-save (with retry and a localStorage backup). reporter.js adds the word count,
-  the image preview and "Submit for approval" (which waits for the last save first).
+  main.js finds <form data-autosave> and PUTs changes to /api/articles/:id/auto-save on a timer
+  (with retry and a localStorage backup). The Save button commits the current change at once and,
+  because it is live only while something is unsaved, shows at a glance that one is outstanding --
+  it is a shortcut and an indicator, never the only route to saving. reporter.js adds the word
+  count, the image preview and "Submit for approval" (which waits for the last save first).
 %>
 <%
   const a = articleView(article);
@@ -31,13 +33,16 @@
       <div class="page-head__actions">
         <% if (!readOnly) { %>
           <p class="save-status" id="save-status" role="status" aria-live="polite" data-state="idle"><%= t('autosave.idle') %></p>
+          <button type="button" class="btn btn--ghost btn--small save-now" id="save-now" data-dirty="false" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span class="btn__label"><%= t('autosave.save') %></span>
+          </button>
         <% } %>
       </div>
     </div>
 
     <div class="desk">
       <form class="desk__paper" id="article-form" data-section="<%= a.category %>"
-            <% if (!readOnly) { %>data-autosave data-article-id="<%= a.id %>" data-updated-at="<%= isoDate(a.updatedAt) %>" data-status-target="#save-status"<% } %>
+            <% if (!readOnly) { %>data-autosave data-article-id="<%= a.id %>" data-updated-at="<%= isoDate(a.updatedAt) %>" data-status-target="#save-status" data-save-target="#save-now"<% } %>
             novalidate>
         <% if (a.status === 'Returned' && a.editorNote) { %>
           <div class="alert alert--warning" role="note">

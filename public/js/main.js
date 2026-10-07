@@ -578,11 +578,22 @@
       this.retryDelay = RETRY_MIN_MS;
       this.lastSaved = this.snapshot();
 
+      this.saveButton = options.saveButton || null;
+
       this.onInput = this.onInput.bind(this);
       this.form.addEventListener('input', this.onInput);
+      // 'change' is what the category <select> fires -- 'input' alone would miss it.
       this.form.addEventListener('change', this.onInput);
-      // Enter in a single-line field must not submit the form (there is no manual save).
-      this.form.addEventListener('submit', function (event) { event.preventDefault(); });
+      // Enter in a single-line field must not reload the page; it saves instead, which is
+      // what a reader of the Save button expects Enter to do.
+      const self0 = this;
+      this.form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        self0.saveNow();
+      });
+      if (this.saveButton) {
+        this.saveButton.addEventListener('click', function () { self0.saveNow(); });
+      }
 
       const self = this;
       window.addEventListener('online', function () {
@@ -595,7 +606,20 @@
       window.addEventListener('pagehide', function () { self.flush(); });
 
       this.setStatus('idle');
+      this.syncButton();
       this.offerRestore();
+    }
+
+    /**
+     * Reflect the save state on the button: it is live only while there is something to
+     * save. Autosave still runs on its timer, so the button is a way to commit a change
+     * immediately and to SEE that one is outstanding -- never the only way to save.
+     */
+    syncButton() {
+      if (!this.saveButton) return;
+      const busy = this.inFlight || Boolean(this.retryTimer);
+      this.saveButton.disabled = this.stopped || busy || !this.dirty;
+      this.saveButton.dataset.dirty = this.dirty ? 'true' : 'false';
     }
 
     values() {
@@ -612,6 +636,7 @@
       if (this.stopped) return;
       if (this.snapshot() === this.lastSaved) return;
       this.dirty = true;
+      this.syncButton();
       storage.set(this.backupKey, { values: this.values(), savedAt: Date.now() });
       clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(this.save.bind(this), this.delay);
@@ -637,6 +662,7 @@
       this.inFlight = true;
       this.dirty = false;
       this.setStatus('saving');
+      this.syncButton();
 
       try {
         const data = await api(this.endpoint, { method: 'PUT', body: payload });
@@ -649,6 +675,7 @@
         this.handleError(error);
       } finally {
         this.inFlight = false;
+        this.syncButton();
         if (this.pending) {
           this.pending = false;
           if (this.dirty && !this.retryTimer) this.save();
@@ -724,6 +751,7 @@
       clearTimeout(this.debounceTimer);
       this.clearRetry();
       this.setStatus(state, null, message);
+      this.syncButton();
     }
 
     setStatus(state, vars, message) {
@@ -797,7 +825,8 @@
           form: form,
           articleId: form.dataset.articleId,
           serverUpdatedAt: form.dataset.updatedAt,
-          statusEl: form.dataset.statusTarget ? document.querySelector(form.dataset.statusTarget) : form.querySelector('.save-status')
+          statusEl: form.dataset.statusTarget ? document.querySelector(form.dataset.statusTarget) : form.querySelector('.save-status'),
+          saveButton: form.dataset.saveTarget ? document.querySelector(form.dataset.saveTarget) : form.querySelector('.save-now')
         });
       });
     }

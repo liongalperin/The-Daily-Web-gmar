@@ -2,7 +2,6 @@
   "site.name": "The Daily Web",
   "site.tagline": "Independent news, updated around the clock",
   "site.skip": "Skip to content",
-
   "nav.home": "Home",
   "nav.sections": "Sections",
   "nav.menu": "Menu",
@@ -16,7 +15,6 @@
   "nav.theme": "Theme",
   "nav.themeLight": "Day",
   "nav.themeDark": "Night",
-
   "cat.all": "All",
   "cat.news": "News",
   "cat.politics": "Politics",
@@ -25,7 +23,6 @@
   "cat.sports": "Sports",
   "cat.culture": "Culture",
   "cat.transport": "Transport",
-
   "feed.title": "Latest news",
   "feed.searchLabel": "Search articles",
   "feed.searchPlaceholder": "Search headlines…",
@@ -44,17 +41,14 @@
   "feed.error": "Couldn't load articles. Check your connection and try again.",
   "feed.retry": "Try again",
   "feed.results": "{count} articles",
-
   "card.by": "By",
   "card.read": "Read",
   "card.views": "Views",
   "card.comments": "Comments",
-
   "article.by": "By {name}",
   "article.published": "Published",
   "article.views": "{count} views",
   "article.back": "Back to the news feed",
-
   "comments.title": "Comments",
   "comments.count": "{count} comments",
   "comments.empty": "No comments yet. Start the conversation.",
@@ -72,7 +66,6 @@
   "comments.invalid": "Write a comment before posting.",
   "comments.error": "Your comment wasn't posted. Check your connection and try again.",
   "comments.charsLeft": "{count} characters left",
-
   "weather.title": "Weather",
   "weather.city": "City",
   "weather.wind": "Wind",
@@ -96,10 +89,11 @@
   "wx.showers": "Rain showers",
   "wx.snow": "Snow",
   "wx.storm": "Thunderstorm",
-
   "autosave.idle": "All changes saved",
   "autosave.saving": "Saving…",
   "autosave.saved": "Saved {time}",
+  "autosave.save": "Save",
+  "autosave.unsaved": "Unsaved changes",
   "autosave.offline": "Connection lost – retrying save",
   "autosave.retrying": "Connection lost – retrying save in {seconds}s",
   "autosave.unauthorized": "Your session expired. Log in again to keep saving.",
@@ -108,13 +102,10 @@
   "autosave.restoreBody": "This browser has a newer copy of your draft than the server, from {time}.",
   "autosave.restore": "Restore my copy",
   "autosave.discard": "Discard",
-
   "footer.rights": "© {year} The Daily Web. Built as a university final project.",
   "footer.weatherCredit": "Weather data by Open-Meteo.com",
-
   "error.title": "Something went wrong",
   "error.notFound": "We couldn't find that page.",
-
   "status.Draft": "In progress",
   "status.Pending": "Awaiting approval",
   "status.Published": "Published",
@@ -127,7 +118,6 @@
   "status.unsubmittedChanges": "Unsubmitted changes",
   "status.isUpdate": "Update to a published article",
   "status.isNew": "New article",
-
   "login.title": "Reporter and editor login",
   "login.eyebrow": "Newsroom",
   "login.lede": "You don't need an account to read the news.",
@@ -138,7 +128,6 @@
   "login.submit": "Log in",
   "login.error": "The username or password is incorrect.",
   "login.required": "Enter your username and password.",
-
   "desk.untitled": "Untitled article",
   "desk.words": "{count} words",
   "desk.readTime": "about {count} min read",
@@ -156,7 +145,6 @@
   "desk.loadMore": "Load more",
   "desk.empty": "No articles here yet.",
   "desk.analytics": "Impact analytics",
-
   "reporter.eyebrow": "{name} · Reporter",
   "reporter.title": "My articles",
   "reporter.new": "New article",
@@ -169,7 +157,6 @@
   "reporter.locked": "Locked while the editor reviews it",
   "reporter.editorNote": "Editor:",
   "reporter.emptyAll": "You haven't written any articles yet. Start with “New article”.",
-
   "editor.back": "My articles",
   "editor.backDesk": "Editor desk",
   "editor.backReview": "Back to review",
@@ -191,12 +178,10 @@
   "editor.pendingNote": "This article is waiting for an editor. You can edit it again once it's approved or returned.",
   "editor.editorMode": "You're editing as the editor. Changes save automatically and go live when you approve the article.",
   "editor.submitFailed": "The latest changes aren't saved yet, so the article wasn't submitted. Try again in a moment.",
-
   "desk.eyebrow": "Editor desk",
   "desk.title": "All articles",
   "desk.searchPlaceholder": "Search titles…",
   "desk.review": "Review",
-
   "review.titleUpdate": "Review: update to a published article",
   "review.titleNew": "Review: new article",
   "review.title": "Article",
@@ -221,7 +206,6 @@
   "review.returned": "Returned to the reporter with your note.",
   "review.notPending": "Only articles awaiting approval can be published or returned.",
   "review.viewLive": "View on site",
-
   "analytics.eyebrow": "Editor desk",
   "analytics.title": "Impact analytics",
   "analytics.pick": "Find a published article",
@@ -257,7 +241,6 @@
   "analytics.colViews": "Views",
   "analytics.updateMark": "update",
   "analytics.chartAria": "Line chart of views per hour, with a marker at each published update",
-
   "error.back": "Back to the front page",
   "error.forbidden": "You don't have permission to view this page."
 }
