@@ -3,7 +3,7 @@
  *
  * Loaded on every page. Contains:
  *   1. Helpers: translations (t), formatting, safe localStorage, the api() Ajax wrapper
- *   2. Header behaviour: mobile menu, language switch, day/night theme
+ *   2. Header behaviour: mobile menu, language switch, day/night theme, password show/hide
  *   3. FeedController: infinite scroll + live search / section filter / viewed filter / sort
  *   4. AutoSave: silent background saving of a reporter's draft (no "Save" button)
  *
@@ -208,6 +208,19 @@
       // Close the mobile panel if the window grows past the breakpoint.
       window.matchMedia('(min-width: 768px)').addEventListener('change', function () { setMenu(false); });
     }
+
+    // Show / hide password buttons: <button data-password-toggle="input-id" data-label-show data-label-hide>
+    document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+      const input = document.getElementById(button.dataset.passwordToggle);
+      if (!input) return;
+      button.addEventListener('click', function () {
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        button.textContent = show ? button.dataset.labelHide : button.dataset.labelShow;
+        button.setAttribute('aria-pressed', String(show));
+        input.focus();
+      });
+    });
 
     // Language: stored in a cookie so the server renders the next page in that language.
     const langButton = document.getElementById('lang-toggle');
@@ -679,6 +692,24 @@
       clearInterval(this.countdownTimer);
       this.retryTimer = null;
       this.countdownTimer = null;
+    }
+
+    /**
+     * Save now and resolve once the server has the latest text. Used before "Submit for approval",
+     * so an article is never submitted with edits that are still only in the browser.
+     * Rejects if the changes could not be saved (offline, session expired...).
+     */
+    async saveAndWait() {
+      const idle = () => new Promise((resolve) => {
+        const check = () => (this.inFlight ? setTimeout(check, 50) : resolve());
+        check();
+      });
+      clearTimeout(this.debounceTimer);
+      this.clearRetry();
+      await idle();
+      if (this.dirty) await this.save();
+      await idle();
+      if (this.dirty || this.stopped) throw new Error('Unsaved changes');
     }
 
     /** Send unsaved changes while the page is going away. The localStorage backup covers a failure. */
