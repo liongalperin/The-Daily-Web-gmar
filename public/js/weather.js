@@ -5,7 +5,11 @@
  * so no secret ever ships to the browser or the Git repository.
  *
  * Caching (the spec allows data up to 15 minutes old, for thousands of concurrent readers):
- *   - Each reading is stored in localStorage per city with its fetch time.
+ *   - The widget asks our server first (GET /api/weather?city=). The server keeps one reading
+ *     per city for 15 minutes, so Open-Meteo gets at most 4 calls per city per 15 minutes,
+ *     however many readers there are.
+ *   - Only if that endpoint is missing or failing does the browser call Open-Meteo itself.
+ *   - Each reading is also stored in localStorage per city with its fetch time.
  *   - A cached reading younger than 15 minutes is shown without any network request, so one
  *     browser makes at most ~4 requests per hour, however many pages it opens.
  *   - If a refresh fails, the last cached reading stays visible, marked as stale.
@@ -81,7 +85,30 @@
     setMode(mode);
   }
 
+  /** Our server's cached reading: { temperature, humidity, wind, code, fetchedAt }. */
+  async function fetchFromServer(city, signal) {
+    const data = await DW.api('/api/weather?city=' + encodeURIComponent(city), { signal: signal });
+    if (!data || typeof data.temperature !== 'number') throw new Error('Unexpected weather payload');
+    return {
+      temperature: data.temperature,
+      humidity: data.humidity,
+      wind: data.wind,
+      code: data.code,
+      // The server's fetch time, so the "updated" label and the local cache age stay honest.
+      fetchedAt: new Date(data.fetchedAt).getTime() || Date.now()
+    };
+  }
+
   async function fetchReading(city, signal) {
+    try {
+      return await fetchFromServer(city, signal);
+    } catch (error) {
+      if (error.name === 'AbortError') throw error;
+      return fetchFromOpenMeteo(city, signal);
+    }
+  }
+
+  async function fetchFromOpenMeteo(city, signal) {
     const coords = CITIES[city];
     const params = new URLSearchParams({
       latitude: String(coords.lat),

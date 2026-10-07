@@ -67,7 +67,8 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 
 ### `GET /api/articles`
 *   Query: `page`, `limit` (20), `q` (title search), `category` (slug), `viewed` (`viewed` | `unviewed`, omitted = all), `sort` (`date` | `popular`).
-*   Response: an array of `{ _id, title, summary, imageUrl, category, authorName, publishedAt, views, commentsCount }`. `{ articles: [...], hasMore }` is also accepted.
+*   Response: an array of `{ _id, title, summary, imageUrl, category, authorName, publishedAt, views, commentsCount, viewed }`. `{ articles: [...], hasMore }` is also accepted.
+*   `viewed` (boolean) says whether this session opened the article. It drives the "Read" badge, so the badge and the `viewed` filter always agree. Send it on the SSR feed's articles too.
 *   The `viewed` filter needs the server to remember, per session, which articles were opened.
 
 ### `POST /api/comments`
@@ -82,8 +83,27 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 *   `401` means the session expired (auto-save stops and asks the reporter to log in). `403`/`404` mean the reporter isn't allowed (auto-save stops).
 *   For the reporter editor page: render the form as `<form data-autosave data-article-id data-updated-at>` (`updatedAt` of the draft), so `main.js` attaches auto-save and can detect a newer local backup.
 
-### Weather
-*   No backend work needed. The widget calls Open-Meteo directly from the browser (no API key) and caches each reading in `localStorage` for 15 minutes.
+### `GET /api/weather?city=`
+*   `city` is one of `tel-aviv`, `jerusalem`, `haifa`, `beer-sheva` (coordinates in `public/js/weather.js`). Anything else returns `400 { error }`.
+*   Response: `{ city, temperature, humidity, wind, code, fetchedAt }`. `code` is the WMO weather code and `fetchedAt` is an ISO time.
+*   **Cache on the server:** keep one reading per city in memory for 15 minutes and call Open-Meteo only when it is older. Thousands of readers then cost at most 4 Open-Meteo calls every 15 minutes. If Open-Meteo fails, return the last reading you have (with its old `fetchedAt`), or `502 { error }` if there is none.
+*   Open-Meteo call (no API key): `https://api.open-meteo.com/v1/forecast?latitude=..&longitude=..&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&wind_speed_unit=kmh&timezone=auto`, then map `current.temperature_2m` → `temperature`, `relative_humidity_2m` → `humidity`, `wind_speed_10m` → `wind`, `weather_code` → `code`.
+*   Until this route exists, the widget calls Open-Meteo directly from the browser, so it works either way. It also caches each reading in `localStorage` for 15 minutes.
+
+### `GET /api/articles/:id`
+*   The published article as JSON: `{ _id, title, summary, content, imageUrl, category, authorName, publishedAt, views, commentsCount }` (from `publicVersion`). An unpublished or unknown id returns `404 { error }`.
+*   The site's pages don't call it (article pages are rendered on the server for SEO). It completes the REST API.
+
+### Errors under `/api`
+*   Every `/api/*` response is JSON, errors included: `{ error: "message" }` with the right status. That covers unknown `/api` routes (`404`) and crashes (`500`). Mount these after the API routes and before the HTML 404 page:
+    ```js
+    app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
+    app.use((err, req, res, next) => {
+      if (!req.originalUrl.startsWith('/api')) return next(err);
+      res.status(err.status || 500).json({ error: err.status ? err.message : 'Server error' });
+    });
+    ```
+*   `public/js/main.js` reads `error` from these bodies to show the message. An HTML error page there shows only the generic status text.
 
 ---
 
@@ -91,7 +111,7 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 
 ### Setup in `app.js`
 *   Also mount `app.use(require('./utils/view-helpers'))` after `utils/i18n`. It provides `articleView()`, `paragraphs()` and `STATUSES` to the views. `articleView()` accepts a Mongoose document or a plain object.
-*   Unknown routes: `res.status(404).render('error', { status: 404 })`. Forbidden: `render('error', { status: 403 })`.
+*   Unknown page routes: `res.status(404).render('error', { status: 404 })`. Forbidden: `render('error', { status: 403 })`. Under `/api`, answer with JSON instead (see "Errors under `/api`").
 *   `Article` needs `summary` in both `draftVersion` and `publicVersion` (the PDF requires a summary on every card), plus timestamps (`updatedAt`).
 
 ### Pages (render calls)
@@ -111,7 +131,7 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 *   `POST /api/articles`: the reporter creates an empty Draft. Returns `201 { _id }`.
 *   `PATCH /api/articles/:id/status` with `{ "status": "Pending" }`. Allowed from Draft, Returned, or Published with unsubmitted changes. Returns `409 { error }` otherwise.
 *   `PUT /api/articles/:id/auto-save`: the same endpoint is used when an **editor** edits an article. Allow role Editor for any article.
-*   `GET /api/admin/articles?status=&q=&page=&limit=`: items `{ _id, status, category, title, authorName, updatedAt, publishedAt, isLive }`. `isLive` means a public version exists. Also used by the analytics picker with `status=Published&limit=8`.
+*   `GET /api/admin/articles?status=&q=&page=&limit=`: items `{ _id, status, category, title, authorName, updatedAt, publishedAt, isLive }`. `isLive` means a public version exists. Also used by the analytics picker with `q=&limit=30` (no status); it keeps only items with `isLive`, so live articles with a Pending update can be found.
 *   `PATCH /api/admin/articles/:id/status` with `{ "status": "Published" }` or `{ "status": "Returned", "editorNote": "..." }`. Publishing copies `draftVersion` into `publicVersion`, sets `publishedAt` and appends to `publishHistory`. Returns `409` if the article isn't Pending, `400` if the note is missing.
 *   `DELETE /api/admin/articles/:id`: returns `204`.
 *   `GET /api/admin/analytics/:articleId` returns **hourly** buckets with ISO timestamps (replaces the `"10:00"` example above, which has no date):
