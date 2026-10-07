@@ -1,0 +1,139 @@
+<%#
+  Public article page. Fully server-rendered: the complete article text is in the initial HTML (SEO),
+  and nothing here depends on JavaScript. article.js only enhances the comment form (Ajax).
+
+  Locals (from the article route):
+    article   - { _id, category, views, authorName | author: { username },
+                  publicVersion: { title, summary, content, imageUrl, publishedAt } }
+                Only publicVersion is rendered, so a pending edit never reaches readers.
+    comments  - [{ _id, authorName, content, createdAt }], newest first
+    canonical - (optional) absolute URL of this page
+%>
+<%
+  const pub = article.publicVersion || article;
+  // Only full http(s) links or paths on this site reach the page; anything else (e.g. "javascript:") shows no image.
+  const imageUrl = /^(https?:\/\/|\/(?!\/))/i.test(pub.imageUrl || '') ? pub.imageUrl : '';
+  const authorName = article.authorName || (article.author && article.author.username) || (article.authorId && article.authorId.username) || '';
+  const paragraphs = String(pub.content || '').split(/\r?\n+/).map(function (p) { return p.trim(); }).filter(Boolean);
+  const commentList = typeof comments !== 'undefined' ? comments : [];
+  const pageUrl = typeof canonical !== 'undefined' ? canonical : '';
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: pub.title,
+    description: pub.summary || '',
+    image: imageUrl ? [imageUrl] : undefined,
+    datePublished: isoDate(pub.publishedAt) || undefined,
+    author: authorName ? [{ '@type': 'Person', name: authorName }] : undefined,
+    articleSection: t('cat.' + article.category),
+    publisher: { '@type': 'Organization', name: t('site.name') }
+  };
+%>
+<%- include('partials/head', {
+  pageTitle: pub.title,
+  description: pub.summary,
+  canonical: pageUrl,
+  ogType: 'article',
+  ogImage: imageUrl,
+  pageScripts: ['/js/article.js', '/js/weather.js'],
+  structuredData: structuredData
+}) %>
+<body class="page-article">
+<%- include('partials/header', { activeCategory: article.category }) %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <article class="story" data-article-id="<%= article._id %>" data-section="<%= article.category %>">
+      <header class="story__head">
+        <a class="kicker__sec story__section" href="/?category=<%= article.category %>"><%= t('cat.' + article.category) %></a>
+        <h1 class="story__title" dir="auto"><%= pub.title %></h1>
+        <% if (pub.summary) { %>
+          <p class="story__dek" dir="auto"><%= pub.summary %></p>
+        <% } %>
+        <div class="story__meta">
+          <span class="byline"><%= t('card.by') %> <span class="byline__name"><%= authorName %></span></span>
+          <span class="story__meta-sep" aria-hidden="true">·</span>
+          <span><%= t('article.published') %> <time datetime="<%= isoDate(pub.publishedAt) %>"><%= formatDate(pub.publishedAt, { dateStyle: 'long', timeStyle: 'short' }) %></time></span>
+          <% if (typeof article.views !== 'undefined') { %>
+            <span class="story__meta-sep" aria-hidden="true">·</span>
+            <span class="stat"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><%= t('article.views', { count: formatNumber(article.views, {}) }) %></span>
+          <% } %>
+        </div>
+      </header>
+
+      <% if (imageUrl) { %>
+        <figure class="story__figure">
+          <img src="<%= imageUrl %>" alt="<%= pub.title %>" width="1200" height="675" fetchpriority="high">
+        </figure>
+      <% } %>
+
+      <div class="story__body" dir="auto">
+        <% paragraphs.forEach(function (paragraph) { %>
+          <p><%= paragraph %></p>
+        <% }) %>
+      </div>
+
+      <footer class="story__foot">
+        <a class="btn btn--ghost" href="/"><svg class="icon icon--flip" aria-hidden="true"><use href="#i-arrow"/></svg><%= t('article.back') %></a>
+      </footer>
+    </article>
+
+    <section class="comments" id="comments" aria-labelledby="comments-title">
+      <h2 class="section-head" id="comments-title">
+        <%= t('comments.title') %>
+        <span class="comments__count" id="comments-count" data-count="<%= commentList.length %>"><%= t('comments.count', { count: formatNumber(commentList.length, {}) }) %></span>
+      </h2>
+
+      <%# Server-side fallback: without JS the form posts normally; article.js upgrades it to Ajax. %>
+      <form class="comment-form" id="comment-form" action="/api/comments" method="post" novalidate>
+        <input type="hidden" name="articleId" value="<%= article._id %>">
+        <h3 class="comment-form__title"><%= t('comments.formTitle') %></h3>
+
+        <div class="alert alert--warning" id="comment-limit" role="alert" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <div>
+            <p class="alert__title" id="comment-limit-text"><%= t('comments.rateLimited') %></p>
+            <p class="alert__body" id="comment-limit-countdown"></p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="comment-name"><%= t('comments.nameLabel') %></label>
+          <input class="input" type="text" id="comment-name" name="authorName" maxlength="40" autocomplete="nickname" placeholder="<%= t('comments.namePlaceholder') %>" dir="auto">
+        </div>
+        <div class="field">
+          <label class="field__label" for="comment-body"><%= t('comments.bodyLabel') %></label>
+          <textarea class="input input--area" id="comment-body" name="content" rows="4" maxlength="1000" required placeholder="<%= t('comments.bodyPlaceholder') %>" dir="auto" aria-describedby="comment-counter comment-feedback"></textarea>
+          <div class="field__foot">
+            <p class="field__feedback" id="comment-feedback" role="status" aria-live="polite"></p>
+            <span class="field__counter" id="comment-counter" data-max="1000"><%= t('comments.charsLeft', { count: 1000 }) %></span>
+          </div>
+        </div>
+        <button class="btn btn--primary" type="submit" id="comment-submit">
+          <svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg>
+          <span class="btn__label"><%= t('comments.submit') %></span>
+        </button>
+      </form>
+
+      <ol class="comment-list" id="comment-list">
+        <% commentList.forEach(function (comment) { %>
+          <li class="comment" data-id="<%= comment._id %>">
+            <div class="comment__head">
+              <span class="avatar" aria-hidden="true"><%= (comment.authorName || t('comments.guest')).trim().charAt(0).toUpperCase() %></span>
+              <span class="comment__author" dir="auto"><%= comment.authorName || t('comments.guest') %></span>
+              <time class="comment__time" datetime="<%= isoDate(comment.createdAt) %>"><%= formatDate(comment.createdAt) %></time>
+            </div>
+            <p class="comment__body" dir="auto"><%= comment.content %></p>
+          </li>
+        <% }) %>
+      </ol>
+      <p class="comments__empty" id="comments-empty"<%= commentList.length ? ' hidden' : '' %>><%= t('comments.empty') %></p>
+    </section>
+  </main>
+
+  <%- include('partials/sidebar') %>
+</div>
+
+<%- include('partials/footer') %>
+</body>
+</html>

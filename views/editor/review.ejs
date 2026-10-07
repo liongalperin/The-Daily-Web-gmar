@@ -1,0 +1,115 @@
+<%#
+  Editor review of one article.
+
+  Locals:
+    article - the Article document
+    user    - { username, role }
+
+  For an update to an already-published article, the version readers see now (publicVersion) and the
+  submitted one (draftVersion) are shown side by side; editor-desk.js highlights the words that changed.
+  Decisions go to PATCH /api/admin/articles/:id/status and DELETE /api/admin/articles/:id.
+%>
+<%
+  const a = articleView(article);
+  const compare = a.isLive && (a.status === 'Pending' || a.hasDraftChanges);
+  // An update the reporter is still working on (not submitted) is shown, but not as "awaiting approval".
+  const unsubmitted = compare && a.status !== 'Pending';
+  const newStatus = unsubmitted ? 'Draft' : (compare ? 'Pending' : a.status);
+  const imageUrl = /^(https?:\/\/|\/(?!\/))/i.test(a.imageUrl || '') ? a.imageUrl : '';
+  const FIELDS = ['title', 'summary', 'content'];
+%>
+<%- include('../partials/head', { pageTitle: a.title || t('desk.untitled'), pageScripts: ['/js/editor-desk.js'] }) %>
+<body class="page-staff page-review">
+<%- include('../partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <section class="review" id="review" data-article-id="<%= a.id %>" data-status="<%= a.status %>">
+      <div class="page-head">
+        <div>
+          <p class="page-head__eyebrow"><a class="back-link" href="/editor"><svg class="icon icon--flip" aria-hidden="true"><use href="#i-arrow"/></svg><%= t('editor.backDesk') %></a></p>
+          <h1 class="page-head__title"><%= a.status === 'Pending' ? (compare ? t('review.titleUpdate') : t('review.titleNew')) : t('review.title') %></h1>
+          <div class="row__meta review__meta">
+            <span id="review-status"><%- include('../partials/status', { status: a.status }) %></span>
+            <% if (a.category) { %><span class="kicker__sec" data-section="<%= a.category %>"><%= t('cat.' + a.category) %></span><% } %>
+            <span><%= t('desk.by', { name: a.authorName }) %> · <%= formatDate(a.updatedAt) %></span>
+          </div>
+        </div>
+        <% if (compare) { %>
+          <div class="page-head__actions">
+            <label class="field-inline"><input type="checkbox" id="diff-toggle" checked> <span class="field-inline__label"><%= t('review.highlight') %></span></label>
+          </div>
+        <% } %>
+      </div>
+
+      <% if (compare) { %>
+        <div class="legend-marks"><span><ins><%= t('review.added') %></ins></span><span><del><%= t('review.removed') %></del></span><span><%= t('review.readersSee') %></span></div>
+      <% } %>
+
+      <div class="compare" id="compare">
+        <% if (compare) { %>
+          <article class="compare__col" data-status="Published">
+            <p class="compare__label"><span><%= t('review.publishedNow') %></span><span class="status" data-status="Published"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('review.live') %></span></p>
+            <h2 class="compare__title" dir="auto" data-diff="title" data-side="old"><%= a.published.title %></h2>
+            <p class="compare__dek" dir="auto" data-diff="summary" data-side="old"><%= a.published.summary %></p>
+            <div class="compare__body" dir="auto" data-diff="content" data-side="old"><% paragraphs(a.published.content).forEach(function (p) { %><p><%= p %></p><% }) %></div>
+          </article>
+        <% } %>
+        <article class="compare__col" data-status="<%= newStatus %>">
+          <p class="compare__label">
+            <span><%= unsubmitted ? t('review.unsubmitted') : compare ? t('review.pending') : t('review.submitted') %></span>
+            <% if (unsubmitted) { %><span class="status" data-status="Draft"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><%= t('review.notSubmitted') %></span><% } else if (compare) { %><span class="status" data-status="Pending"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><%= t('review.newVersion') %></span><% } %>
+          </p>
+          <% if (imageUrl) { %><img class="review__image" src="<%= imageUrl %>" alt="" loading="lazy"><% } %>
+          <h2 class="compare__title" dir="auto" data-diff="title" data-side="new"><%= a.title || t('desk.untitled') %></h2>
+          <p class="compare__dek" dir="auto" data-diff="summary" data-side="new"><%= a.summary %></p>
+          <div class="compare__body" dir="auto" data-diff="content" data-side="new"><% paragraphs(a.content).forEach(function (p) { %><p><%= p %></p><% }) %></div>
+        </article>
+      </div>
+
+      <div class="desk__paper decision-card">
+        <p class="panel__title"><%= t('review.decision') %></p>
+        <div class="alert" id="decision-result" role="status" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div><p class="alert__title" id="decision-result-text"></p>
+            <p class="decision__links"><a href="/articles/<%= a.id %>" target="_blank" rel="noopener"><%= t('review.viewLive') %></a> · <a href="/editor"><%= t('editor.backDesk') %></a></p></div>
+        </div>
+        <div class="alert alert--error" id="decision-error" role="alert" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span id="decision-error-text"><%= t('desk.actionFailed') %></span>
+        </div>
+
+        <div class="decision" id="decision">
+          <div class="page-head__actions">
+            <button type="button" class="btn btn--primary" id="approve"<%= a.editorCanDecide ? '' : ' disabled' %>><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('review.approve') %></button>
+            <button type="button" class="btn btn--ghost" id="return-toggle" aria-expanded="false" aria-controls="return-note"<%= a.editorCanDecide ? '' : ' disabled' %>><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg><%= t('review.return') %></button>
+            <a class="btn btn--ghost" href="/editor/articles/<%= a.id %>/edit"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><%= t('review.editSelf') %></a>
+            <button type="button" class="btn btn--danger" id="delete-article"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg><%= t('desk.delete') %></button>
+          </div>
+          <% if (!a.editorCanDecide) { %><p class="field__feedback"><%= t('review.notPending') %></p><% } %>
+
+          <form class="decision__note field" id="return-note" hidden novalidate>
+            <label class="field__label" for="return-text"><%= t('review.noteLabel') %></label>
+            <textarea class="input input--area" id="return-text" name="editorNote" maxlength="1000" dir="auto" placeholder="<%= t('review.notePlaceholder') %>"></textarea>
+            <p class="field__feedback" id="return-feedback" role="status" aria-live="polite"></p>
+            <div class="page-head__actions"><button type="submit" class="btn btn--small btn--primary" id="return-send"><%= t('review.sendBack') %></button></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <% STATUSES.forEach(function (s) { %>
+      <template id="status-template-<%= s %>"><%- include('../partials/status', { status: s }) %></template>
+    <% }) %>
+    <template id="confirm-template">
+      <div class="confirm" role="alert">
+        <span><%= t('desk.confirmDelete') %></span>
+        <button type="button" class="btn btn--small btn--danger" data-confirm-yes><%= t('desk.delete') %></button>
+        <button type="button" class="btn btn--small btn--ghost" data-confirm-no><%= t('desk.cancel') %></button>
+      </div>
+    </template>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

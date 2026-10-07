@@ -1,0 +1,12 @@
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <a class="logo logo--small" href="/">The <span class="logo__accent">Daily</span> Web</a>
+    <ul class="site-footer__sections" aria-label="<%= t('nav.sections') %>">
+      <% categories.forEach(function (slug) { %>
+        <li><a href="/?category=<%= slug %>"><%= t('cat.' + slug) %></a></li>
+      <% }) %>
+    </ul>
+    <p class="site-footer__legal"><%= t('footer.rights', { year: new Date().getFullYear() }) %></p>
+    <p class="site-footer__legal"><a href="https://open-meteo.com/" rel="noopener" target="_blank"><%= t('footer.weatherCredit') %></a></p>
+  </div>
+</footer>

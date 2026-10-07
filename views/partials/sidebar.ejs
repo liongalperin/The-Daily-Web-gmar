@@ -1,0 +1,38 @@
+<%# Sidebar. The weather widget is filled in by /js/weather.js (Open-Meteo, cached for 15 minutes). %>
+<aside class="sidebar" aria-label="<%= t('weather.title') %>">
+  <section class="weather glass is-loading" id="weather" aria-labelledby="weather-title" aria-busy="true">
+    <div class="weather__head">
+      <h2 class="weather__heading" id="weather-title"><%= t('weather.title') %></h2>
+      <label class="select-wrap select-wrap--quiet">
+        <span class="visually-hidden"><%= t('weather.city') %></span>
+        <select class="select select--quiet" id="weather-city">
+          <% ['tel-aviv', 'jerusalem', 'haifa', 'beer-sheva'].forEach(function (city) { %>
+            <option value="<%= city %>"><%= t('city.' + city) %></option>
+          <% }) %>
+        </select>
+        <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+      </label>
+    </div>
+
+    <div class="weather__now">
+      <svg class="weather__art" role="img" aria-labelledby="weather-desc"><use id="weather-icon" href="#wx-partly"/></svg>
+      <div>
+        <p class="weather__temp"><span id="weather-temp">--</span><sup>°C</sup></p>
+        <p class="weather__desc" id="weather-desc"><%= t('weather.loading') %></p>
+      </div>
+    </div>
+
+    <dl class="weather__facts">
+      <div class="fact">
+        <dt><svg class="icon" aria-hidden="true"><use href="#i-wind"/></svg><%= t('weather.wind') %></dt>
+        <dd><span id="weather-wind">--</span> <small><%= t('weather.kmh') %></small></dd>
+      </div>
+      <div class="fact">
+        <dt><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg><%= t('weather.humidity') %></dt>
+        <dd><span id="weather-humidity">--</span><small>%</small></dd>
+      </div>
+    </dl>
+
+    <p class="weather__foot" id="weather-status" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="weather-status-text"><%= t('weather.loading') %></span></p>
+  </section>
+</aside>

@@ -1,0 +1,103 @@
+<%#
+  Reporter workspace: the reporter's own articles and their states.
+
+  Locals:
+    articles - all Article documents that belong to the logged-in reporter (newest first)
+    user     - { username, role }
+
+  reporter.js filters the list by status without reloading, creates new articles
+  (POST /api/articles) and submits articles for approval (PATCH /api/articles/:id/status).
+%>
+<%
+  const items = (typeof articles !== 'undefined' ? articles : []).map(articleView);
+  const counts = { all: items.length };
+  STATUSES.forEach(function (s) { counts[s] = items.filter(function (a) { return a.status === s; }).length; });
+  const SUBMIT_LABEL = { Draft: 'reporter.submit', Returned: 'reporter.resubmit', Published: 'reporter.submitUpdate' };
+%>
+<%- include('../partials/head', { pageTitle: t('reporter.title'), pageScripts: ['/js/reporter.js'] }) %>
+<body class="page-staff">
+<%- include('../partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <div class="page-head">
+      <div>
+        <p class="page-head__eyebrow"><%= t('reporter.eyebrow', { name: (typeof user !== 'undefined' && user) ? user.username : '' }) %></p>
+        <h1 class="page-head__title"><%= t('reporter.title') %></h1>
+      </div>
+      <div class="page-head__actions">
+        <button type="button" class="btn btn--primary" id="new-article" data-label-busy="<%= t('reporter.creating') %>">
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span class="btn__label"><%= t('reporter.new') %></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="alert alert--error" id="desk-error" role="alert" hidden>
+      <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span id="desk-error-text"><%= t('desk.actionFailed') %></span>
+    </div>
+
+    <div class="tabs" id="status-tabs" role="group" aria-label="<%= t('editor.statusTitle') %>">
+      <button type="button" class="tab" data-filter="" aria-pressed="true"><%= t('status.all') %> <span class="tab__count"><%= counts.all %></span></button>
+      <% ['Draft', 'Pending', 'Returned', 'Published'].forEach(function (s) { %>
+        <button type="button" class="tab" data-filter="<%= s %>" data-status="<%= s %>" aria-pressed="false"><%= t('statusGroup.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= counts[s] %></span></button>
+      <% }) %>
+    </div>
+
+    <ul class="rows" id="reporter-rows">
+      <% items.forEach(function (a) { %>
+        <li class="row" data-id="<%= a.id %>" data-status="<%= a.status %>">
+          <div class="row__main">
+            <span>
+              <%- include('../partials/status', { status: a.status }) %>
+              <% if (a.status === 'Published' && a.hasDraftChanges) { %><span class="row__flag">· <%= t('status.unsubmittedChanges') %></span><% } %>
+            </span>
+            <h2 class="row__title" dir="auto">
+              <% if (a.reporterCanEdit) { %><a href="/reporter/articles/<%= a.id %>/edit"><%= a.title || t('desk.untitled') %></a><% } else { %><%= a.title || t('desk.untitled') %><% } %>
+            </h2>
+            <div class="row__meta">
+              <% if (a.category) { %><span class="kicker__sec" data-section="<%= a.category %>"><%= t('cat.' + a.category) %></span><% } %>
+              <% if (a.status === 'Published') { %>
+                <span><%= t('desk.publishedOn', { time: formatDate(a.publishedAt) }) %></span>
+                <% if (typeof a.views !== 'undefined') { %><span class="stat"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><%= formatNumber(a.views) %></span><% } %>
+              <% } else if (a.status === 'Pending') { %>
+                <span><%= t('desk.submitted', { time: formatDate(a.submittedAt) }) %></span>
+              <% } else { %>
+                <span><%= t('desk.edited', { time: formatDate(a.updatedAt) }) %></span>
+                <span>· <%= t('desk.words', { count: formatNumber(a.wordCount, {}) }) %></span>
+              <% } %>
+            </div>
+            <% if (a.status === 'Returned' && a.editorNote) { %>
+              <p class="row__note"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg><span dir="auto"><strong><%= t('reporter.editorNote') %></strong> <%= a.editorNote %></span></p>
+            <% } %>
+          </div>
+          <div class="row__side">
+            <% if (a.reporterCanEdit) { %>
+              <a class="btn btn--small btn--ghost" href="/reporter/articles/<%= a.id %>/edit"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><%= t('desk.edit') %></a>
+            <% } %>
+            <% if (a.reporterCanSubmit) { %>
+              <button type="button" class="btn btn--small btn--primary" data-submit="<%= a.id %>" data-label-busy="<%= t('reporter.submitting') %>">
+                <svg class="icon" aria-hidden="true"><use href="#i-send"/></svg><span class="btn__label"><%= t(SUBMIT_LABEL[a.status]) %></span>
+              </button>
+            <% } %>
+            <% if (a.status === 'Pending') { %>
+              <span class="row__meta"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><%= t('reporter.locked') %></span>
+            <% } %>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+    <p class="feed__message" id="rows-empty"<%= items.length ? ' hidden' : '' %> data-empty-all="<%= t('reporter.emptyAll') %>" data-empty-filter="<%= t('desk.empty') %>"><%= items.length ? t('desk.empty') : t('reporter.emptyAll') %></p>
+
+    <%# Template for a row whose status changed to Pending after an Ajax submit (reporter.js swaps the badge with it). %>
+    <template id="pending-badge-template">
+      <%- include('../partials/status', { status: 'Pending' }) %>
+    </template>
+    <template id="locked-note-template">
+      <span class="row__meta"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><%= t('reporter.locked') %></span>
+    </template>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

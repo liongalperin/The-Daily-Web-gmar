@@ -1,0 +1,93 @@
+<%#
+  Impact Analytics: views of one article over time, with the moments an editor published an update.
+
+  Locals:
+    selected - (optional) { _id, title } of the article to open directly (from ?article=<id>)
+    user     - { username, role }
+
+  analytics.js searches published articles (GET /api/admin/articles?status=Published&q=),
+  loads GET /api/admin/analytics/:articleId and draws the graph with Chart.js (served locally from /vendor).
+%>
+<%
+  const pre = typeof selected !== 'undefined' && selected ? { id: String(selected._id), title: (selected.publicVersion && selected.publicVersion.title) || selected.title || '' } : null;
+%>
+<%- include('../partials/head', { pageTitle: t('analytics.title'), pageScripts: ['/vendor/chart.umd.min.js', '/js/analytics.js'] }) %>
+<body class="page-staff page-analytics">
+<%- include('../partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <section class="review" id="analytics" <% if (pre) { %>data-article-id="<%= pre.id %>" data-article-title="<%= pre.title %>"<% } %>>
+      <div class="page-head">
+        <div>
+          <p class="page-head__eyebrow"><a class="back-link" href="/editor"><svg class="icon icon--flip" aria-hidden="true"><use href="#i-arrow"/></svg><%= t('analytics.eyebrow') %></a></p>
+          <h1 class="page-head__title"><%= t('analytics.title') %></h1>
+        </div>
+      </div>
+
+      <div class="picker" id="picker">
+        <div class="search">
+          <label class="visually-hidden" for="picker-q"><%= t('analytics.pick') %></label>
+          <svg class="icon search__icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <input class="search__input" type="search" id="picker-q" placeholder="<%= t('analytics.pickPlaceholder') %>" value="<%= pre ? pre.title : '' %>"
+                 autocomplete="off" dir="auto" role="combobox" aria-expanded="false" aria-controls="picker-results" aria-autocomplete="list">
+        </div>
+        <ul class="picker__results" id="picker-results" role="listbox" aria-label="<%= t('analytics.pick') %>" hidden></ul>
+      </div>
+
+      <p class="feed__message" id="an-empty"<%= pre ? ' hidden' : '' %>><%= t('analytics.choose') %></p>
+      <div class="loader" id="an-loader" hidden><span class="loader__bar" aria-hidden="true"></span><span><%= t('analytics.loading') %></span></div>
+      <div class="alert alert--error" id="an-error" role="alert" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span id="an-error-text"><%= t('analytics.error') %></span>
+        <button type="button" class="btn btn--ghost" id="an-retry"><%= t('feed.retry') %></button>
+      </div>
+
+      <div class="review" id="an-report" hidden>
+        <div class="tiles">
+          <div class="tile"><span class="tile__label"><%= t('analytics.total') %></span><span class="tile__value" id="t-total">–</span><span class="tile__delta"><%= t('analytics.totalSub') %></span></div>
+          <div class="tile"><span class="tile__label"><%= t('analytics.peak') %></span><span class="tile__value" id="t-peak">–</span><span class="tile__delta" id="t-peak-when"></span></div>
+          <div class="tile"><span class="tile__label"><%= t('analytics.latestImpact') %></span><span class="tile__value" id="t-impact">–</span><span class="tile__delta" id="t-impact-detail"></span></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-card__head">
+            <div>
+              <h2 class="chart-card__title" id="chart-title" dir="auto"></h2>
+              <p class="chart-card__sub"><%= t('analytics.chartSub') %></p>
+            </div>
+            <div class="page-head__actions">
+              <div class="segmented" id="range" role="group" aria-label="<%= t('analytics.rangeLabel') %>">
+                <button type="button" data-range="24" aria-pressed="false"><%= t('analytics.range24') %></button>
+                <button type="button" data-range="72" aria-pressed="false"><%= t('analytics.range72') %></button>
+                <button type="button" data-range="168" aria-pressed="false"><%= t('analytics.range7d') %></button>
+                <button type="button" data-range="0" aria-pressed="true"><%= t('analytics.rangeAll') %></button>
+              </div>
+              <button type="button" class="btn btn--small btn--ghost" id="table-toggle" aria-expanded="false" aria-controls="table-wrap"><%= t('analytics.showTable') %></button>
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="chart" role="img" aria-label="<%= t('analytics.chartAria') %>"></canvas></div>
+          <p class="feed__message" id="chart-empty" hidden><%= t('analytics.noData') %></p>
+          <div class="chart-key">
+            <span class="chart-key__item"><span class="chart-key__line" aria-hidden="true"></span><%= t('analytics.keyViews') %></span>
+            <span class="chart-key__item"><span class="chart-key__marker" aria-hidden="true"></span><%= t('analytics.keyUpdate') %></span>
+          </div>
+          <div class="data-table-wrap" id="table-wrap" hidden>
+            <table class="data-table">
+              <thead><tr><th scope="col"><%= t('analytics.colHour') %></th><th scope="col" class="num"><%= t('analytics.colViews') %></th></tr></thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <p class="panel__title"><%= t('analytics.impactTitle') %></p>
+          <div class="impact" id="impact"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

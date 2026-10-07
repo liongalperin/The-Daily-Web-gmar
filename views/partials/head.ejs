@@ -1,0 +1,45 @@
+<%#
+  Document head. Pass when including:
+    pageTitle    (string, optional)  - shown before the site name
+    description  (string, optional)  - meta description / og:description
+    canonical    (string, optional)  - absolute canonical URL
+    ogType       (string, optional)  - 'website' (default) or 'article'
+    ogImage      (string, optional)
+    pageScripts  (array,  optional)  - extra /js/*.js files to load after main.js
+    structuredData (object, optional) - schema.org JSON-LD for search engines
+%>
+<%
+  const fullTitle = (typeof pageTitle !== 'undefined' && pageTitle) ? pageTitle + ' | ' + t('site.name') : t('site.name') + ' | ' + t('site.tagline');
+  const metaDescription = (typeof description !== 'undefined' && description) ? description : t('site.tagline');
+%>
+<!DOCTYPE html>
+<html lang="<%= lang %>" dir="<%= dir %>" data-theme="<%= theme %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= fullTitle %></title>
+  <meta name="description" content="<%= metaDescription %>">
+  <meta name="color-scheme" content="light dark">
+  <% if (typeof canonical !== 'undefined' && canonical) { %>
+  <link rel="canonical" href="<%= canonical %>">
+  <meta property="og:url" content="<%= canonical %>">
+  <% } %>
+  <meta property="og:site_name" content="<%= t('site.name') %>">
+  <meta property="og:title" content="<%= (typeof pageTitle !== 'undefined' && pageTitle) ? pageTitle : t('site.name') %>">
+  <meta property="og:description" content="<%= metaDescription %>">
+  <meta property="og:type" content="<%= (typeof ogType !== 'undefined' && ogType) ? ogType : 'website' %>">
+  <meta property="og:locale" content="<%= lang === 'he' ? 'he_IL' : 'en_US' %>">
+  <% if (typeof ogImage !== 'undefined' && ogImage) { %>
+  <meta property="og:image" content="<%= ogImage %>">
+  <% } %>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script id="i18n-data" type="application/json"><%- clientI18n %></script>
+  <script src="/js/main.js" defer></script>
+  <% if (typeof pageScripts !== 'undefined') { pageScripts.forEach(function (src) { %>
+  <script src="<%= src %>" defer></script>
+  <% }) } %>
+  <% if (typeof structuredData !== 'undefined' && structuredData) { %>
+  <script type="application/ld+json"><%- JSON.stringify(structuredData).replace(/</g, '\\u003c') %></script>
+  <% } %>
+</head>

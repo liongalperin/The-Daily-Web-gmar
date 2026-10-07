@@ -1,0 +1,29 @@
+<%#
+  Error page. Locals (optional): status (e.g. 404, 403, 500), message.
+  Never pass stack traces or internal details here; log those on the server instead.
+%>
+<%
+  const code = typeof status !== 'undefined' && status ? status : 500;
+  const text = typeof message !== 'undefined' && message
+    ? message
+    : (code === 404 ? t('error.notFound') : code === 403 ? t('error.forbidden') : t('desk.actionFailed'));
+  const title = code === 404 ? t('error.titleNotFound') : code === 403 ? t('error.titleForbidden') : t('error.title');
+%>
+<%- include('partials/head', { pageTitle: title }) %>
+<body class="page-error">
+<%- include('partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main auth" id="content">
+    <div class="auth__card">
+      <p class="page-head__eyebrow"><%= code %></p>
+      <h1 class="auth__title"><%= title %></h1>
+      <p class="auth__lede"><%= text %></p>
+      <a class="btn btn--primary" href="/"><%= t('error.back') %></a>
+    </div>
+  </main>
+</div>
+
+<%- include('partials/footer') %>
+</body>
+</html>
