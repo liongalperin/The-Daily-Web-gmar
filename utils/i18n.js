@@ -6,7 +6,7 @@
  *
  * Exposes to every EJS view (res.locals):
  *   lang, dir          - 'he' | 'en', 'rtl' | 'ltr'  (from the "lang" cookie, default Hebrew)
- *   theme              - 'light' | 'dark' | null     (from the "theme" cookie; null = follow the OS)
+ *   theme              - 'light' | 'dark'            (from the "theme" cookie, default light)
  *   t(key, vars)       - translated string with {placeholder} interpolation
  *   formatDate(d, o)   - localized date via Intl.DateTimeFormat
  *   formatNumber(n, o) - localized number via Intl.NumberFormat
@@ -22,6 +22,7 @@ const LOCALES = { he, en };
 const DEFAULT_LANG = 'he';
 const RTL_LANGS = ['he'];
 const THEMES = ['light', 'dark'];
+const DEFAULT_THEME = 'light';
 
 // Serialized once per language. "<" is escaped so the JSON can never close the <script> tag.
 const CLIENT_JSON = {};
@@ -58,7 +59,7 @@ function i18n(req, res, next) {
   req.lang = lang;
   res.locals.lang = lang;
   res.locals.dir = RTL_LANGS.includes(lang) ? 'rtl' : 'ltr';
-  res.locals.theme = THEMES.includes(cookies.theme) ? cookies.theme : null;
+  res.locals.theme = THEMES.includes(cookies.theme) ? cookies.theme : DEFAULT_THEME;
   res.locals.categories = res.locals.categories || CATEGORIES;
   res.locals.clientI18n = CLIENT_JSON[lang];
 
