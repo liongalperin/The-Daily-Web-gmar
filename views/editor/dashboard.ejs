@@ -46,7 +46,7 @@
 
       <div class="tabs" id="desk-tabs" role="group" aria-label="<%= t('editor.statusTitle') %>">
         <% ['Pending', 'Published', 'Returned', 'Draft'].forEach(function (s) { %>
-          <a class="tab" href="/editor?status=<%= s %>" data-filter="<%= s %>" data-status="<%= s %>" aria-current="<%= f.status === s %>"><%= t('status.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= formatNumber(c[s], {}) %></span></a>
+          <a class="tab" href="/editor?status=<%= s %>" data-filter="<%= s %>" data-status="<%= s %>" aria-current="<%= f.status === s %>"><%= t('statusGroup.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= formatNumber(c[s], {}) %></span></a>
         <% }) %>
         <a class="tab" href="/editor?status=all" data-filter="all" aria-current="<%= f.status === 'all' %>"><%= t('status.all') %> <span class="tab__count" data-count-for="all"><%= formatNumber(c.all, {}) %></span></a>
       </div>

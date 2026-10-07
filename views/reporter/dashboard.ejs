@@ -39,7 +39,7 @@
     <div class="tabs" id="status-tabs" role="group" aria-label="<%= t('editor.statusTitle') %>">
       <button type="button" class="tab" data-filter="" aria-pressed="true"><%= t('status.all') %> <span class="tab__count"><%= counts.all %></span></button>
       <% ['Draft', 'Pending', 'Returned', 'Published'].forEach(function (s) { %>
-        <button type="button" class="tab" data-filter="<%= s %>" data-status="<%= s %>" aria-pressed="false"><%= t('status.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= counts[s] %></span></button>
+        <button type="button" class="tab" data-filter="<%= s %>" data-status="<%= s %>" aria-pressed="false"><%= t('statusGroup.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= counts[s] %></span></button>
       <% }) %>
     </div>
 
