@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="The Daily Web">
+  <rect width="640" height="360" fill="#e6e5e0"/>
+  <g fill="#d3d2cc">
+    <rect x="40" y="48" width="260" height="14"/><rect x="40" y="76" width="220" height="14"/>
+    <rect x="40" y="120" width="250" height="6"/><rect x="40" y="136" width="250" height="6"/><rect x="40" y="152" width="230" height="6"/>
+    <rect x="40" y="168" width="250" height="6"/><rect x="40" y="184" width="200" height="6"/>
+    <rect x="340" y="48" width="260" height="150"/>
+    <rect x="40" y="232" width="560" height="2"/>
+    <rect x="40" y="256" width="170" height="6"/><rect x="40" y="272" width="170" height="6"/><rect x="40" y="288" width="140" height="6"/>
+    <rect x="235" y="256" width="170" height="6"/><rect x="235" y="272" width="170" height="6"/><rect x="235" y="288" width="150" height="6"/>
+    <rect x="430" y="256" width="170" height="6"/><rect x="430" y="272" width="170" height="6"/><rect x="430" y="288" width="120" height="6"/>
+  </g>
+  <rect x="40" y="320" width="64" height="6" fill="#c8102e"/>
+</svg>

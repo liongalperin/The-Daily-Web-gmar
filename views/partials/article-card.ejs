@@ -1,0 +1,29 @@
+<%#
+  One feed card. Expects `article`: { _id, title, summary, imageUrl, category, authorName, publishedAt, views, commentsCount }.
+  Keep this markup in sync with <template id="card-template"> in index.ejs (main.js fills that template for Ajax pages).
+%>
+<li class="feed__item">
+  <article class="card" data-id="<%= article._id %>" data-section="<%= article.category %>">
+    <div class="card__media">
+      <img src="<%= article.imageUrl || '/images/placeholder.svg' %>" alt="" width="640" height="360" loading="lazy" decoding="async">
+    </div>
+    <div class="card__body">
+      <div class="kicker">
+        <span class="kicker__sec"><%= t('cat.' + article.category) %></span>
+        <span class="badge card__read" hidden><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('card.read') %></span>
+      </div>
+      <h3 class="card__title" dir="auto"><a href="/articles/<%= article._id %>"><%= article.title %></a></h3>
+      <p class="card__summary" dir="auto"><%= article.summary %></p>
+      <footer class="card__meta">
+        <div class="byline">
+          <span><%= t('card.by') %> <span class="byline__name"><%= article.authorName %></span></span>
+          <time datetime="<%= isoDate(article.publishedAt) %>"><%= formatDate(article.publishedAt) %></time>
+        </div>
+        <div class="stats">
+          <span class="stat" title="<%= t('card.views') %>"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span class="card__views"><%= formatNumber(article.views || 0) %></span></span>
+          <span class="stat" title="<%= t('card.comments') %>"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg><span class="card__comments"><%= formatNumber(article.commentsCount || 0) %></span></span>
+        </div>
+      </footer>
+    </div>
+  </article>
+</li>

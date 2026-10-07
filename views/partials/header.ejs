@@ -1,0 +1,64 @@
+<%#
+  Site header: masthead (date, preferences, account) + sticky section navigation.
+  Optional locals: user ({ username, role }), activeCategory (slug).
+%>
+<%
+  const currentUser = (typeof user !== 'undefined' && user) ? user : null;
+  const active = (typeof activeCategory !== 'undefined' && activeCategory) ? activeCategory : '';
+%>
+<a class="skip-link" href="#content"><%= t('site.skip') %></a>
+<%- include('icons') %>
+
+<header class="masthead">
+  <div class="container masthead__bar">
+    <time class="masthead__date" datetime="<%= new Date().toISOString().slice(0, 10) %>"><%= formatDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></time>
+
+    <div class="masthead__tools">
+      <button type="button" class="tool-btn" id="lang-toggle" data-lang="<%= lang === 'he' ? 'en' : 'he' %>" aria-label="<%= t('nav.languageLabel') %>" lang="<%= lang === 'he' ? 'en' : 'he' %>">
+        <svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg><span><%= t('nav.language') %></span>
+      </button>
+
+      <button type="button" class="tool-btn" id="theme-toggle" aria-label="<%= t('nav.theme') %>"
+              data-label-light="<%= t('nav.themeLight') %>" data-label-dark="<%= t('nav.themeDark') %>">
+        <svg class="icon icon--when-light" aria-hidden="true"><use href="#i-moon"/></svg>
+        <svg class="icon icon--when-dark" aria-hidden="true"><use href="#i-sun-small"/></svg>
+        <span class="theme-toggle__label"><%= t('nav.theme') %></span>
+      </button>
+
+      <% if (currentUser) { %>
+        <a class="tool-btn" href="<%= currentUser.role === 'Editor' ? '/editor' : '/reporter' %>">
+          <svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>
+          <span><%= currentUser.role === 'Editor' ? t('nav.editorArea') : t('nav.reporterArea') %></span>
+        </a>
+        <form class="inline-form" action="/logout" method="post">
+          <button type="submit" class="tool-btn"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span><%= t('nav.logout') %></span></button>
+        </form>
+      <% } else { %>
+        <a class="tool-btn" href="/login"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span><%= t('nav.login') %></span></a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="container masthead__brand">
+    <a class="logo" href="/" aria-label="<%= t('site.name') %> – <%= t('nav.home') %>">The <span class="logo__accent">Daily</span> Web</a>
+    <p class="masthead__tagline"><%= t('site.tagline') %></p>
+  </div>
+</header>
+
+<nav class="sitenav glass" aria-label="<%= t('nav.sections') %>">
+  <div class="container sitenav__inner">
+    <a class="sitenav__logo" href="/" tabindex="-1" aria-hidden="true">T<span class="logo__accent">D</span>W</a>
+    <button type="button" class="sitenav__toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-sections"
+            data-label-open="<%= t('nav.menu') %>" data-label-close="<%= t('nav.close') %>" aria-label="<%= t('nav.menu') %>">
+      <svg class="icon icon--open" aria-hidden="true"><use href="#i-menu"/></svg>
+      <svg class="icon icon--close" aria-hidden="true"><use href="#i-close"/></svg>
+      <span><%= t('nav.sections') %></span>
+    </button>
+    <ul class="sitenav__list" id="nav-sections">
+      <li><a class="sitenav__link<%= active === '' ? ' is-active' : '' %>" href="/" data-category=""<%- active === '' ? ' aria-current="page"' : '' %>><%= t('nav.home') %></a></li>
+      <% categories.forEach(function (slug) { %>
+        <li><a class="sitenav__link<%= active === slug ? ' is-active' : '' %>" href="/?category=<%= slug %>" data-category="<%= slug %>" data-section="<%= slug %>"<%- active === slug ? ' aria-current="page"' : '' %>><%= t('cat.' + slug) %></a></li>
+      <% }) %>
+    </ul>
+  </div>
+</nav>
