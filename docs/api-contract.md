@@ -84,3 +84,44 @@ These are what the views and client scripts in `views/` and `public/js/` rely on
 
 ### Weather
 *   No backend work needed. The widget calls Open-Meteo directly from the browser (no API key) and caches each reading in `localStorage` for 15 minutes.
+
+---
+
+## Frontend expectations: newsroom pages (Developer 2, deliverable 2)
+
+### Setup in `app.js`
+*   Also mount `app.use(require('./utils/view-helpers'))` after `utils/i18n`. It provides `articleView()`, `paragraphs()` and `STATUSES` to the views. `articleView()` accepts a Mongoose document or a plain object.
+*   Unknown routes: `res.status(404).render('error', { status: 404 })`. Forbidden: `render('error', { status: 403 })`.
+*   `Article` needs `summary` in both `draftVersion` and `publicVersion` (the PDF requires a summary on every card), plus timestamps (`updatedAt`).
+
+### Pages (render calls)
+| Route | View | Locals |
+|---|---|---|
+| `GET /login` | `login` | `error` (bool, after a failed attempt), `username`, `next` (optional) |
+| `POST /login` | – | form fields `username`, `password`. Success: redirect to `/reporter` or `/editor`. Failure: re-render `login` with `error: true` (status 401) |
+| `POST /logout` | – | destroy the session, redirect to `/` |
+| `GET /reporter` | `reporter/dashboard` | `articles`: all of the reporter's Article documents |
+| `GET /reporter/articles/:id/edit` | `reporter/edit` | `article` (must belong to the reporter) |
+| `GET /editor` | `editor/dashboard` | `articles` (page 1), `counts: { all, Draft, Pending, Published, Returned }`, `filters: { status, q }` (status defaults to `Pending`), `hasMore` |
+| `GET /editor/articles/:id` | `editor/review` | `article` |
+| `GET /editor/articles/:id/edit` | `reporter/edit` | `article` (same editor view, opened by an editor) |
+| `GET /editor/analytics` | `editor/analytics` | `selected`: the Article for `?article=<id>`, or null |
+
+### Ajax endpoints
+*   `POST /api/articles`: the reporter creates an empty Draft. Returns `201 { _id }`.
+*   `PATCH /api/articles/:id/status` with `{ "status": "Pending" }`. Allowed from Draft, Returned, or Published with unsubmitted changes. Returns `409 { error }` otherwise.
+*   `PUT /api/articles/:id/auto-save`: the same endpoint is used when an **editor** edits an article. Allow role Editor for any article.
+*   `GET /api/admin/articles?status=&q=&page=&limit=`: items `{ _id, status, category, title, authorName, updatedAt, publishedAt, isLive }`. `isLive` means a public version exists. Also used by the analytics picker with `status=Published&limit=8`.
+*   `PATCH /api/admin/articles/:id/status` with `{ "status": "Published" }` or `{ "status": "Returned", "editorNote": "..." }`. Publishing copies `draftVersion` into `publicVersion`, sets `publishedAt` and appends to `publishHistory`. Returns `409` if the article isn't Pending, `400` if the note is missing.
+*   `DELETE /api/admin/articles/:id`: returns `204`.
+*   `GET /api/admin/analytics/:articleId` returns **hourly** buckets with ISO timestamps (replaces the `"10:00"` example above, which has no date):
+    ```json
+    {
+      "viewData": [{ "time": "2026-10-04T06:00:00.000Z", "views": 150 }],
+      "updatePoints": ["2026-10-05T12:00:00.000Z"]
+    }
+    ```
+    `updatePoints` should hold the times in `publishHistory`.
+
+### Chart.js
+*   `public/vendor/chart.umd.min.js` is Chart.js 4.4.1 (MIT, license next to it). The PDF explicitly allows Chart.js for the Impact Analytics graph. It's stored locally so the graph works without internet.
