@@ -31,7 +31,7 @@
           <span><%= currentUser.role === 'Editor' ? t('nav.editorArea') : t('nav.reporterArea') %></span>
         </a>
         <form class="inline-form" action="/logout" method="post">
-          <button type="submit" class="tool-btn"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span><%= t('nav.logout') %></span></button>
+          <button type="submit" class="tool-btn"><svg class="icon icon--mirror-rtl" aria-hidden="true"><use href="#i-logout"/></svg><span><%= t('nav.logout') %></span></button>
         </form>
       <% } else { %>
         <a class="tool-btn" href="/login"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span><%= t('nav.login') %></span></a>

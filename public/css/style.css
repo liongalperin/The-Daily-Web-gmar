@@ -223,6 +223,8 @@ ul, ol { margin: 0; padding: 0; }
 }
 /* The arrow icon points right; "back" should point left in LTR and stays right in RTL */
 [dir="ltr"] .icon--flip { transform: scaleX(-1); }
+/* Directional icons (e.g. log out: arrow leaves through the door) point the other way in RTL */
+[dir="rtl"] .icon--mirror-rtl { transform: scaleX(-1); }
 
 .visually-hidden {
   position: absolute !important;
@@ -1149,6 +1151,12 @@ img[src$="placeholder.svg"] { filter: var(--placeholder-filter); }
 .save-status[data-state="offline"]::before,
 .save-status[data-state="error"]::before { background: var(--warn); animation: pulse 1s ease-in-out infinite; }
 
+/* The Save button is live only while a change is outstanding, so its state is also the
+   answer to "is my edit in yet?" -- quiet when there is nothing to do, accented when
+   there is. Disabled is a real resting state here, not an error. */
+.save-now[disabled] { opacity: .55; cursor: default; }
+.save-now[data-dirty="true"] { border-color: var(--stamp); color: var(--stamp); }
+
 .restore { flex-wrap: wrap; }
 .restore__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-inline-start: auto; }
 
@@ -1378,6 +1386,17 @@ a.tab { text-decoration: none; }
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .ink-input::placeholder { color: var(--ink-3); }
+
+/* dir="auto" reads the direction off the field's VALUE, and an empty field has no strong
+   character to read -- so on the Hebrew site every placeholder sat left-aligned until the
+   first letter was typed. While the placeholder is showing there is no value to detect, so
+   follow the page direction; dir="auto" takes back over on the first character, which is
+   what it is there for (a Hebrew reporter filing in English still gets an LTR field). */
+[dir="auto"]:placeholder-shown {
+  direction: inherit;
+  unicode-bidi: normal;
+  text-align: start;
+}
 .ink-input:hover { border-block-end-color: var(--ink-3); }
 .ink-input:focus { border-block-end-color: var(--stamp); box-shadow: inset 0 -1px 0 var(--stamp); }
 .ink-input:read-only { cursor: default; border-block-end-style: dashed; }
