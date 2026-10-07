@@ -1,0 +1,133 @@
+<%#
+  Home page: the public news feed.
+
+  Locals (from the home route):
+    articles  - first page of published articles (up to 20), same shape as GET /api/articles items
+    filters   - { q, category, viewed, sort } as parsed from the query string (all optional)
+    hasMore   - (optional) whether another page exists; defaults to articles.length === 20
+    user      - (optional) logged-in user, for the header
+
+  The first 20 cards are rendered here on the server. main.js (FeedController) appends the next
+  pages via Ajax (infinite scroll) and handles search, filtering and sorting without reloading the page.
+%>
+<%
+  const f = Object.assign({ q: '', category: '', viewed: 'all', sort: 'date' }, typeof filters !== 'undefined' ? filters : {});
+  const list = typeof articles !== 'undefined' ? articles : [];
+  const more = typeof hasMore !== 'undefined' ? hasMore : list.length === 20;
+%>
+<%- include('partials/head', { pageTitle: f.category ? t('cat.' + f.category) : '', canonical: typeof canonical !== 'undefined' ? canonical : '', pageScripts: ['/js/weather.js'] }) %>
+<body class="page-home">
+<%- include('partials/header', { activeCategory: f.category }) %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <section class="feed" id="feed" aria-labelledby="feed-title" data-page-size="20">
+      <div class="feed__head">
+        <h1 class="section-head" id="feed-title"><%= f.category ? t('cat.' + f.category) : t('feed.title') %></h1>
+      </div>
+
+      <%# Works without JavaScript too: submitting reloads the page with the same query parameters. %>
+      <form class="controls" id="feed-controls" action="/" method="get" role="search">
+        <div class="search">
+          <label class="visually-hidden" for="feed-q"><%= t('feed.searchLabel') %></label>
+          <svg class="icon search__icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <input class="search__input" type="search" id="feed-q" name="q" value="<%= f.q %>"
+                 placeholder="<%= t('feed.searchPlaceholder') %>" autocomplete="off" maxlength="100" dir="auto">
+          <button class="search__submit" type="submit"><%= t('feed.searchSubmit') %></button>
+        </div>
+
+        <div class="controls__row">
+          <fieldset class="chips">
+            <legend class="visually-hidden"><%= t('feed.categoryLabel') %></legend>
+            <button type="submit" class="chip-sec chip-sec--all" name="category" value="" aria-pressed="<%= f.category === '' %>"><%= t('cat.all') %></button>
+            <% categories.forEach(function (slug) { %>
+              <button type="submit" class="chip-sec" name="category" value="<%= slug %>" data-section="<%= slug %>" aria-pressed="<%= f.category === slug %>"><%= t('cat.' + slug) %></button>
+            <% }) %>
+          </fieldset>
+
+          <div class="controls__selects">
+            <label class="field-inline">
+              <span class="field-inline__label"><%= t('feed.viewedLabel') %></span>
+              <span class="select-wrap">
+                <select class="select" id="feed-viewed" name="viewed">
+                  <option value="all"<%= f.viewed === 'all' ? ' selected' : '' %>><%= t('feed.viewedAll') %></option>
+                  <option value="unviewed"<%= f.viewed === 'unviewed' ? ' selected' : '' %>><%= t('feed.unviewedOnly') %></option>
+                  <option value="viewed"<%= f.viewed === 'viewed' ? ' selected' : '' %>><%= t('feed.viewedOnly') %></option>
+                </select>
+                <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </span>
+            </label>
+            <label class="field-inline">
+              <span class="field-inline__label"><%= t('feed.sortLabel') %></span>
+              <span class="select-wrap">
+                <select class="select" id="feed-sort" name="sort">
+                  <option value="date"<%= f.sort === 'date' ? ' selected' : '' %>><%= t('feed.sortDate') %></option>
+                  <option value="popular"<%= f.sort === 'popular' ? ' selected' : '' %>><%= t('feed.sortPopular') %></option>
+                </select>
+                <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </span>
+            </label>
+          </div>
+        </div>
+      </form>
+
+      <ul class="feed__list" id="feed-list" data-has-more="<%= more %>" aria-live="polite" aria-busy="false">
+        <% list.forEach(function (article) { %>
+          <%- include('partials/article-card', { article: article }) %>
+        <% }) %>
+      </ul>
+
+      <div class="feed__status" id="feed-status" role="status">
+        <p class="feed__message" id="feed-empty"<%= list.length ? ' hidden' : '' %>><%= t('feed.empty') %></p>
+        <p class="feed__message" id="feed-end"<%= (list.length && !more) ? '' : ' hidden' %>><%= t('feed.end') %></p>
+        <div class="loader" id="feed-loader" hidden><span class="loader__bar" aria-hidden="true"></span><span><%= t('feed.loading') %></span></div>
+        <div class="alert alert--error" id="feed-error" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <span><%= t('feed.error') %></span>
+          <button type="button" class="btn btn--ghost" id="feed-retry"><%= t('feed.retry') %></button>
+        </div>
+      </div>
+      <%# Scrolling this element into view (with a 600px lead) triggers the next page. %>
+      <div class="feed__sentinel" id="feed-sentinel" aria-hidden="true"></div>
+
+      <noscript>
+        <p class="feed__message"><a class="btn" href="?<%= new URLSearchParams(Object.assign({}, f, { page: 2 })).toString() %>"><%= t('feed.loading') %></a></p>
+      </noscript>
+    </section>
+  </main>
+
+  <%- include('partials/sidebar') %>
+</div>
+
+<%- include('partials/footer') %>
+
+<%# Client-side copy of partials/article-card.ejs, filled by main.js using textContent only (no innerHTML = no XSS). %>
+<template id="card-template">
+  <li class="feed__item">
+    <article class="card" data-id="" data-section="">
+      <div class="card__media">
+        <img src="/images/placeholder.svg" alt="" width="640" height="360" loading="lazy" decoding="async">
+      </div>
+      <div class="card__body">
+        <div class="kicker">
+          <span class="kicker__sec"></span>
+          <span class="badge card__read" hidden><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('card.read') %></span>
+        </div>
+        <h3 class="card__title" dir="auto"><a href=""></a></h3>
+        <p class="card__summary" dir="auto"></p>
+        <footer class="card__meta">
+          <div class="byline">
+            <span><%= t('card.by') %> <span class="byline__name"></span></span>
+            <time datetime=""></time>
+          </div>
+          <div class="stats">
+            <span class="stat" title="<%= t('card.views') %>"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span class="card__views"></span></span>
+            <span class="stat" title="<%= t('card.comments') %>"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg><span class="card__comments"></span></span>
+          </div>
+        </footer>
+      </div>
+    </article>
+  </li>
+</template>
+</body>
+</html>
