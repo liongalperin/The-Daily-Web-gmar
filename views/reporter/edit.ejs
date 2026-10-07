@@ -1,0 +1,122 @@
+<%#
+  Article editor. Used by reporters (/reporter/articles/:id/edit) and by editors (/editor/articles/:id/edit).
+
+  Locals:
+    article - the Article document (draftVersion is edited; publicVersion is what readers see)
+    user    - { username, role }
+
+  There is no Save button. main.js finds <form data-autosave> and silently PUTs changes to
+  /api/articles/:id/auto-save (with retry and a localStorage backup). reporter.js adds the word count,
+  the image preview and "Submit for approval" (which waits for the last save first).
+%>
+<%
+  const a = articleView(article);
+  const isEditor = typeof user !== 'undefined' && user && user.role === 'Editor';
+  const readOnly = !isEditor && !a.reporterCanEdit;
+  const backUrl = isEditor ? '/editor/articles/' + a.id : '/reporter';
+  const SUBMIT_LABEL = { Draft: 'reporter.submit', Returned: 'reporter.resubmit', Published: 'reporter.submitUpdate', Pending: 'reporter.submit' };
+  const isNew = !a.title && !a.content;
+%>
+<%- include('../partials/head', { pageTitle: isNew ? t('editor.titleNew') : t('editor.titleEdit'), pageScripts: ['/js/reporter.js'] }) %>
+<body class="page-staff page-edit">
+<%- include('../partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <div class="page-head">
+      <div>
+        <p class="page-head__eyebrow"><a class="back-link" href="<%= backUrl %>"><svg class="icon icon--flip" aria-hidden="true"><use href="#i-arrow"/></svg><%= isEditor ? t('editor.backReview') : t('editor.back') %></a></p>
+        <h1 class="page-head__title"><%= isNew ? t('editor.titleNew') : t('editor.titleEdit') %></h1>
+      </div>
+      <div class="page-head__actions">
+        <% if (!readOnly) { %>
+          <p class="save-status" id="save-status" role="status" aria-live="polite" data-state="idle"><%= t('autosave.idle') %></p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="desk">
+      <form class="desk__paper" id="article-form" data-section="<%= a.category %>"
+            <% if (!readOnly) { %>data-autosave data-article-id="<%= a.id %>" data-updated-at="<%= isoDate(a.updatedAt) %>" data-status-target="#save-status"<% } %>
+            novalidate>
+        <% if (a.status === 'Returned' && a.editorNote) { %>
+          <div class="alert alert--warning" role="note">
+            <svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg>
+            <div><p class="alert__title"><%= t('editor.returnedTitle') %></p><p dir="auto"><%= a.editorNote %></p></div>
+          </div>
+        <% } %>
+        <% if (readOnly) { %>
+          <div class="alert" role="note">
+            <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg>
+            <p><%= t('editor.pendingNote') %></p>
+          </div>
+        <% } %>
+
+        <div class="desk__meta">
+          <div class="field">
+            <label class="field__label" for="f-category"><%= t('editor.section') %></label>
+            <span class="select-wrap">
+              <select class="select" id="f-category" name="category"<%= readOnly ? ' disabled' : '' %>>
+                <% categories.forEach(function (slug) { %>
+                  <option value="<%= slug %>"<%= a.category === slug ? ' selected' : '' %>><%= t('cat.' + slug) %></option>
+                <% }) %>
+              </select>
+              <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+            </span>
+          </div>
+          <div class="field">
+            <label class="field__label" for="f-image"><%= t('editor.image') %></label>
+            <div class="image-field">
+              <img class="image-field__thumb" id="f-image-thumb" src="<%= a.imageUrl || '/images/placeholder.svg' %>" alt="" width="72" height="41">
+              <input class="input" type="url" id="f-image" name="imageUrl" value="<%= a.imageUrl %>" placeholder="https://" dir="ltr" inputmode="url"<%= readOnly ? ' readonly' : '' %>>
+            </div>
+          </div>
+        </div>
+
+        <label class="visually-hidden" for="f-title"><%= t('editor.headline') %></label>
+        <textarea class="ink-input ink-input--title" id="f-title" name="title" rows="2" maxlength="200" dir="auto" placeholder="<%= t('editor.headlinePlaceholder') %>"<%= readOnly ? ' readonly' : '' %>><%= a.title %></textarea>
+
+        <label class="visually-hidden" for="f-summary"><%= t('editor.summary') %></label>
+        <textarea class="ink-input ink-input--dek" id="f-summary" name="summary" rows="2" maxlength="400" dir="auto" placeholder="<%= t('editor.summaryPlaceholder') %>"<%= readOnly ? ' readonly' : '' %>><%= a.summary %></textarea>
+
+        <label class="visually-hidden" for="f-content"><%= t('editor.body') %></label>
+        <textarea class="ink-input ink-input--body" id="f-content" name="content" dir="auto" placeholder="<%= t('editor.bodyPlaceholder') %>"<%= readOnly ? ' readonly' : '' %>><%= a.content %></textarea>
+
+        <p class="desk__count" id="word-count"><%= t('desk.words', { count: formatNumber(a.wordCount, {}) }) %></p>
+      </form>
+
+      <aside class="desk__panel">
+        <div class="panel">
+          <p class="panel__title"><%= t('editor.statusTitle') %></p>
+          <span id="status-badge"><%- include('../partials/status', { status: a.status }) %></span>
+          <p class="panel__text"><%= isEditor ? t('editor.editorMode') : t('editor.autosaveNote') %></p>
+
+          <% if (!isEditor && (a.reporterCanSubmit || a.status === 'Published')) { %>
+            <button type="button" class="btn btn--primary" id="submit-article" data-article-id="<%= a.id %>"
+                    data-label-busy="<%= t('reporter.submitting') %>"
+                    <% if (!a.reporterCanSubmit) { %>disabled data-enable-on-change<% } %>>
+              <svg class="icon" aria-hidden="true"><use href="#i-send"/></svg><span class="btn__label"><%= t(SUBMIT_LABEL[a.status]) %></span>
+            </button>
+            <p class="field__feedback" id="submit-feedback" role="status" aria-live="polite"></p>
+          <% } %>
+        </div>
+
+        <% if (a.isLive) { %>
+          <div class="panel">
+            <p class="panel__title"><%= t('editor.publishedTitle') %></p>
+            <p class="panel__text"><%= t('editor.publishedNote') %></p>
+            <a class="btn btn--ghost btn--small" href="/articles/<%= a.id %>" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><%= t('review.viewLive') %></a>
+          </div>
+        <% } %>
+      </aside>
+    </div>
+
+    <template id="pending-badge-template">
+      <%- include('../partials/status', { status: 'Pending' }) %>
+    </template>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

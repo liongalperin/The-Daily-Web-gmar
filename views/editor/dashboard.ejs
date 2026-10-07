@@ -1,0 +1,89 @@
+<%#
+  Editor desk: every article in the system, filtered by state.
+
+  Locals:
+    articles - first page (20) of articles for the current filter
+    counts   - { all, Draft, Pending, Published, Returned }
+    filters  - { status, q }; status defaults to 'Pending' (what the editor acts on)
+    hasMore  - (optional) defaults to articles.length === 20
+    user     - { username, role }
+
+  editor-desk.js switches status tabs and searches via GET /api/admin/articles (no reload),
+  loads further pages, and deletes with an inline confirmation (DELETE /api/admin/articles/:id).
+%>
+<%
+  const f = Object.assign({ status: 'Pending', q: '' }, typeof filters !== 'undefined' ? filters : {});
+  const items = (typeof articles !== 'undefined' ? articles : []).map(articleView);
+  const c = Object.assign({ all: 0, Draft: 0, Pending: 0, Published: 0, Returned: 0 }, typeof counts !== 'undefined' ? counts : {});
+  const more = typeof hasMore !== 'undefined' ? hasMore : items.length === 20;
+%>
+<%- include('../partials/head', { pageTitle: t('desk.title'), pageScripts: ['/js/editor-desk.js'] }) %>
+<body class="page-staff">
+<%- include('../partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main" id="content">
+    <section class="desk-list" id="desk" data-page-size="20" aria-labelledby="desk-title">
+      <div class="page-head">
+        <div>
+          <p class="page-head__eyebrow"><%= t('desk.eyebrow') %></p>
+          <h1 class="page-head__title" id="desk-title"><%= t('desk.title') %></h1>
+        </div>
+        <div class="page-head__actions">
+          <a class="btn btn--ghost" href="/editor/analytics"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg><%= t('desk.analytics') %></a>
+        </div>
+      </div>
+
+      <form class="toolbar" id="desk-search" action="/editor" method="get" role="search">
+        <input type="hidden" name="status" value="<%= f.status %>">
+        <div class="search">
+          <label class="visually-hidden" for="desk-q"><%= t('desk.searchPlaceholder') %></label>
+          <svg class="icon search__icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <input class="search__input" type="search" id="desk-q" name="q" value="<%= f.q %>" placeholder="<%= t('desk.searchPlaceholder') %>" autocomplete="off" dir="auto">
+          <button class="search__submit" type="submit"><%= t('feed.searchSubmit') %></button>
+        </div>
+      </form>
+
+      <div class="tabs" id="desk-tabs" role="group" aria-label="<%= t('editor.statusTitle') %>">
+        <% ['Pending', 'Published', 'Returned', 'Draft'].forEach(function (s) { %>
+          <a class="tab" href="/editor?status=<%= s %>" data-filter="<%= s %>" data-status="<%= s %>" aria-current="<%= f.status === s %>"><%= t('status.' + s) %> <span class="tab__count" data-count-for="<%= s %>"><%= formatNumber(c[s], {}) %></span></a>
+        <% }) %>
+        <a class="tab" href="/editor?status=all" data-filter="all" aria-current="<%= f.status === 'all' %>"><%= t('status.all') %> <span class="tab__count" data-count-for="all"><%= formatNumber(c.all, {}) %></span></a>
+      </div>
+
+      <div class="alert alert--error" id="desk-error" role="alert" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span><%= t('desk.actionFailed') %></span>
+      </div>
+
+      <ul class="rows" id="desk-rows" aria-live="polite" aria-busy="false">
+        <% items.forEach(function (a) { %>
+          <%- include('../partials/desk-row', { a: a }) %>
+        <% }) %>
+      </ul>
+      <p class="feed__message" id="desk-empty"<%= items.length ? ' hidden' : '' %>><%= t('desk.empty') %></p>
+      <div class="feed__status">
+        <div class="loader" id="desk-loader" hidden><span class="loader__bar" aria-hidden="true"></span><span><%= t('feed.loading') %></span></div>
+        <button type="button" class="btn btn--ghost" id="desk-more"<%= more ? '' : ' hidden' %>><%= t('desk.loadMore') %></button>
+      </div>
+    </section>
+
+    <%# Client-side copy of partials/desk-row.ejs (filled with textContent only). %>
+    <template id="desk-row-template">
+      <%- include('../partials/desk-row', { a: { id: '', status: 'Draft', isLive: false, title: '', authorName: '', category: '', updatedAt: '' } }) %>
+    </template>
+    <% STATUSES.forEach(function (s) { %>
+      <template id="status-template-<%= s %>"><%- include('../partials/status', { status: s }) %></template>
+    <% }) %>
+    <template id="confirm-template">
+      <div class="confirm" role="alert">
+        <span><%= t('desk.confirmDelete') %></span>
+        <button type="button" class="btn btn--small btn--danger" data-confirm-yes><%= t('desk.delete') %></button>
+        <button type="button" class="btn btn--small btn--ghost" data-confirm-no><%= t('desk.cancel') %></button>
+      </div>
+    </template>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

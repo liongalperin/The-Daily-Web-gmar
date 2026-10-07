@@ -1,0 +1,60 @@
+<%#
+  Login for reporters and editors. A plain HTML form (POST /login); the server checks the
+  password hash, starts the session and redirects (reporter -> /reporter, editor -> /editor).
+
+  Locals (all optional):
+    error     - true / message when the last attempt failed (the form is re-rendered)
+    username  - value to keep in the username field after a failed attempt
+    next      - where to go after logging in
+%>
+<%
+  const failed = typeof error !== 'undefined' && error;
+  const prevUser = typeof username !== 'undefined' ? username : '';
+%>
+<%- include('partials/head', { pageTitle: t('login.title') }) %>
+<body class="page-login">
+<%- include('partials/header') %>
+
+<div class="container layout">
+  <main class="layout__main auth" id="content">
+    <form class="auth__card" id="login-form" action="/login" method="post" novalidate>
+      <div>
+        <p class="page-head__eyebrow"><%= t('login.eyebrow') %></p>
+        <h1 class="auth__title"><%= t('login.title') %></h1>
+      </div>
+      <p class="auth__lede"><%= t('login.lede') %></p>
+
+      <div class="alert alert--error" id="login-error" role="alert"<%= failed ? '' : ' hidden' %>>
+        <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+        <span id="login-error-text"><%= t('login.error') %></span>
+      </div>
+
+      <% if (typeof next !== 'undefined' && next) { %>
+        <input type="hidden" name="next" value="<%= next %>">
+      <% } %>
+
+      <div class="field">
+        <label class="field__label" for="login-username"><%= t('login.username') %></label>
+        <input class="input" type="text" id="login-username" name="username" value="<%= prevUser %>"
+               autocomplete="username" autocapitalize="none" spellcheck="false" required dir="ltr"<%= failed ? '' : ' autofocus' %>>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="login-password"><%= t('login.password') %></label>
+        <div class="password">
+          <input class="input" type="password" id="login-password" name="password" autocomplete="current-password" required dir="ltr"<%= failed ? ' autofocus' : '' %>>
+          <button type="button" class="password__toggle" data-password-toggle="login-password" aria-pressed="false"
+                  data-label-show="<%= t('login.show') %>" data-label-hide="<%= t('login.hide') %>"><%= t('login.show') %></button>
+        </div>
+      </div>
+
+      <button class="btn btn--primary" type="submit">
+        <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><%= t('login.submit') %>
+      </button>
+    </form>
+  </main>
+</div>
+
+<%- include('partials/footer') %>
+</body>
+</html>
