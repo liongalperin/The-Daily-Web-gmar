@@ -1155,7 +1155,8 @@ img[src$="placeholder.svg"] { filter: var(--placeholder-filter); }
    answer to "is my edit in yet?" -- quiet when there is nothing to do, accented when
    there is. Disabled is a real resting state here, not an error. */
 .save-now[disabled] { opacity: .55; cursor: default; }
-.save-now[data-dirty="true"] { border-color: var(--stamp); color: var(--stamp); }
+.save-now[data-dirty="true"] { background: var(--stamp); border-color: var(--stamp); color: var(--stamp-ink); }
+.save-now[data-dirty="true"]:hover { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 
 .restore { flex-wrap: wrap; }
 .restore__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-inline-start: auto; }
