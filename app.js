@@ -14,6 +14,7 @@ const morgan = require('morgan');
 
 const authRoutes = require('./routes/auth');
 const errorHandler = require('./middleware/errorHandler');
+const { getSessionSecret } = require('./config/secrets');
 
 function createApp(customSessionStore = null) {
   const app = express();
@@ -66,7 +67,7 @@ function createApp(customSessionStore = null) {
   // Session Configuration
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || 'dailyweb_default_session_secret_123',
+      secret: getSessionSecret(),
       resave: false,
       saveUninitialized: false,
       store: sessionStore,

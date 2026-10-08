@@ -11,7 +11,7 @@ A modern, responsive, high-performance web application for managing, editing, an
 
 ## 🔑 Demo Credentials Table
 
-All pre-seeded staff accounts share the default password `password123`.
+All pre-seeded staff accounts share the default password `password123`. These are demo accounts created by `npm run seed` on your local database only; they aren't credentials to any real system.
 
 | Role | Username | Password | Desk URL | Capabilities |
 | :--- | :--- | :--- | :--- | :--- |
@@ -52,7 +52,7 @@ The-Daily-Web-gmar/
 ├── app.js                          # Express application factory & middleware setup
 ├── server.js                       # HTTP server entrypoint
 ├── package.json                    # Dependencies and npm scripts
-├── .env                            # Environment variables (PORT, MONGODB_URI, SESSION_SECRET)
+├── .env.example                    # Optional settings; copy to .env (never committed)
 │
 ├── config/
 │   ├── db.js                       # Resilient Mongoose connection & pool config
@@ -136,15 +136,15 @@ cd The-Daily-Web-gmar
 npm install
 ```
 
-### 2. Configure Environment (`.env`)
-The repository includes a ready-to-run `.env` file configured for local development:
-```env
-PORT=3000
-MONGODB_URI=mongodb://127.0.0.1:27017/dailyweb
-SESSION_SECRET=dailyweb_super_secret_session_key_2026
-ADMIN_SECRET_KEY=dailyweb_super_secret_session_key_2026
-NODE_ENV=development
-WEATHER_API_KEY=mock_key
+### 2. Configuration (optional)
+No configuration is needed to run the project locally, and no secrets are stored in the repository:
+* **Session secret:** if `SESSION_SECRET` isn't set, the server generates a random one on first start and keeps it in `.session-secret` (ignored by Git), so logins still survive a restart. Production refuses to start without `SESSION_SECRET`.
+* **Database:** uses MongoDB at `mongodb://localhost:27017/dailyweb`. If no MongoDB is running, the server starts an embedded in-memory database and fills it with the demo data automatically (its data and logins reset on every restart).
+* **Weather:** uses Open-Meteo, which needs no API key.
+
+To change a setting, copy the example file and edit it:
+```bash
+cp .env.example .env
 ```
 
 ### 3. Seed High-Volume Dataset (500+ Articles)

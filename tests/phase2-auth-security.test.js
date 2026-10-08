@@ -10,6 +10,9 @@ const { Article } = require('../models');
 const { requireAuth, requireRole, checkArticleOwnership } = require('../middleware/auth');
 const { commentRateLimiter } = require('../middleware/rateLimiter');
 
+// Test-only setup key for the X-Admin-Key path (the real one comes from .env and is off by default)
+process.env.ADMIN_SETUP_KEY = process.env.ADMIN_SETUP_KEY || 'test-only-setup-key';
+
 async function runPhase2Tests() {
   console.log('🚀 Starting Hardened Phase 2 Auth, Security & Session Persistence Verification...');
 
@@ -88,7 +91,7 @@ async function runPhase2Tests() {
     // Register an Editor using admin key setup
     const editorRegRes = await request(app)
       .post('/api/auth/register')
-      .set('X-Admin-Key', process.env.SESSION_SECRET || 'dailyweb_default_session_secret_123')
+      .set('X-Admin-Key', process.env.ADMIN_SETUP_KEY)
       .send({
         username: 'editor1',
         password: 'password123',

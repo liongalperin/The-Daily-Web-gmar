@@ -167,7 +167,9 @@ const authController = {
       // Privilege escalation protection: only authenticated Editors can create other Editors
       if (role === 'Editor') {
         const callerIsEditor = req.session?.user?.role === 'Editor';
-        const isSetupKey = req.headers['x-admin-key'] === (process.env.SESSION_SECRET || 'dailyweb_default_session_secret_123');
+        // Optional setup key for creating the first Editor; disabled unless ADMIN_SETUP_KEY is set
+        const setupKey = process.env.ADMIN_SETUP_KEY;
+        const isSetupKey = Boolean(setupKey) && req.headers['x-admin-key'] === setupKey;
         if (!callerIsEditor && !isSetupKey) {
           logger.audit('UNAUTHORIZED_EDITOR_CREATION_ATTEMPT', req.session?.user?.id || null, { username });
           return res.status(403).json({
