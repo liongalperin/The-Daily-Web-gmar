@@ -10,7 +10,7 @@
  *   STATUSES             - the four article states, in workflow order.
  */
 const STATUSES = ['Draft', 'Pending', 'Published', 'Returned'];
-const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl'];
+const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl', 'category'];
 
 function plain(doc) {
   if (!doc) return {};
@@ -67,7 +67,9 @@ function articleView(raw) {
     // Workflow rules for showing buttons. The server enforces the same rules; this is presentation only.
     reporterCanEdit: status !== 'Pending',
     reporterCanSubmit: status === 'Draft' || status === 'Returned' || (status === 'Published' && hasDraftChanges),
-    editorCanDecide: status === 'Pending'
+    editorCanDecide: status === 'Pending',
+    // Approve also publishes the editor's own edits to a live article
+    editorCanPublish: status === 'Pending' || (status === 'Published' && hasDraftChanges)
   };
 }
 

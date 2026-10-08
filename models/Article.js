@@ -15,7 +15,8 @@ const versionSubSchema = {
   },
   content: {
     type: String,
-    default: ''
+    default: '',
+    maxlength: [50000, 'Content cannot exceed 50,000 characters']
   },
   snippet: {
     type: String,
@@ -32,7 +33,8 @@ const versionSubSchema = {
   imageUrl: {
     type: String,
     trim: true,
-    default: '/images/default-news.jpg'
+    default: '/images/default-news.jpg',
+    maxlength: [2000, 'Image URL cannot exceed 2,000 characters']
   },
   category: {
     type: String,
@@ -128,10 +130,13 @@ articleSchema.index({ status: 1, updatedAt: -1 });
 articleSchema.index({ authorId: 1, status: 1, updatedAt: -1 });
 articleSchema.index({ authorId: 1, updatedAt: -1 });
 
-// State Machine Transition Rules
-articleSchema.statics.canTransition = function (currentStatus, targetStatus, role) {
-  if (currentStatus === targetStatus) return true;
+// Fields that make up a version; a draft differs from the public version if any of them differ
+const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl', 'category'];
 
+// State Machine Transition Rules
+// Published -> Pending (reporter) and Published -> Published (editor's own edits) also need
+// draft changes; the controllers check that with hasDraftChanges().
+articleSchema.statics.canTransition = function (currentStatus, targetStatus, role) {
   if (role === 'Reporter') {
     if (currentStatus === 'Draft' && targetStatus === 'Pending') return true;
     if (currentStatus === 'Returned' && targetStatus === 'Pending') return true;
@@ -144,10 +149,70 @@ articleSchema.statics.canTransition = function (currentStatus, targetStatus, rol
     if (currentStatus === 'Pending' && (targetStatus === 'Published' || targetStatus === 'Returned')) {
       return true;
     }
+    // An editor publishes their own edits to a live article directly
+    if (currentStatus === 'Published' && targetStatus === 'Published') return true;
     return false;
   }
 
   return false;
+};
+
+// True when the working draft differs from what readers see now
+articleSchema.statics.hasDraftChanges = function (article) {
+  const draft = article.draftVersion || {};
+  const pub = article.publicVersion || {};
+  if (!pub.publishedAt) return true;
+  return VERSION_FIELDS.some((field) => (draft[field] || '') !== (pub[field] || ''));
+};
+
+// Image URLs: empty, a full http(s) link, or a path on this site ("/images/..."), never "//host" or "javascript:"
+articleSchema.statics.isSafeImageUrl = function (url) {
+  if (url === undefined || url === null || url === '') return true;
+  return typeof url === 'string' && /^(https?:\/\/|\/(?!\/))/i.test(url.trim());
+};
+
+// Why a draft can't go to review or be published yet, or null when it can
+articleSchema.statics.draftProblem = function (draft = {}) {
+  if (!String(draft.title || '').trim()) return 'The article needs a title.';
+  if (!String(draft.content || '').trim()) return 'The article needs body text.';
+  if (!this.isSafeImageUrl(draft.imageUrl)) return 'The image URL must be an http(s) link or a path on this site.';
+  return null;
+};
+
+// Feed cards for GET / and GET /api/articles:
+// { _id, id, title, summary, imageUrl, category, authorName, author, publishedAt, views, commentsCount, viewed }
+// Never includes login usernames or draft data.
+articleSchema.statics.toFeedItems = async function (rawArticles, viewedIds = []) {
+  const ids = rawArticles.map((a) => a._id);
+  const counts = ids.length
+    ? await mongoose.model('Comment').aggregate([
+      { $match: { articleId: { $in: ids } } },
+      { $group: { _id: '$articleId', count: { $sum: 1 } } }
+    ])
+    : [];
+  const countById = new Map(counts.map((c) => [String(c._id), c.count]));
+  const viewed = new Set(viewedIds.map(String));
+
+  return rawArticles.map((a) => {
+    const pub = a.publicVersion || {};
+    const author = a.authorId && typeof a.authorId === 'object' && a.authorId._id ? a.authorId : null;
+    const authorName = author ? (author.fullName || author.username || '') : '';
+    const id = String(a._id);
+    return {
+      _id: a._id,
+      id,
+      title: pub.title || '',
+      summary: pub.summary || pub.snippet || '',
+      imageUrl: pub.imageUrl || '/images/default-news.jpg',
+      category: a.category,
+      authorName,
+      author: author ? { id: author._id, fullName: authorName } : null,
+      publishedAt: pub.publishedAt || a.createdAt,
+      views: a.totalViews || 0,
+      commentsCount: countById.get(id) || 0,
+      viewed: viewed.has(id)
+    };
+  });
 };
 
 // Full CRUD Static Helpers for academic rubric requirement
@@ -182,13 +247,20 @@ articleSchema.statics.getArticleById = function (id) {
 articleSchema.statics.searchPublishedArticles = function ({
   search = '',
   category = '',
-  sort = 'date', // 'date' | 'popularity'
+  sort = 'date', // 'date' | 'popular' ('popularity' also accepted)
+  viewed = 'all', // 'all' | 'viewed' | 'unviewed', against viewedIds (the session's opened articles)
+  viewedIds = [],
   page = 1,
   limit = 20
 } = {}) {
   const query = {
     'publicVersion.publishedAt': { $exists: true, $ne: null }
   };
+
+  if (viewed === 'viewed' || viewed === 'unviewed') {
+    const ids = viewedIds.filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id));
+    query._id = viewed === 'viewed' ? { $in: ids } : { $nin: ids };
+  }
 
   if (category && category !== 'all' && category !== 'הכל') {
     query.category = category;
@@ -204,7 +276,7 @@ articleSchema.statics.searchPublishedArticles = function ({
     ];
   }
 
-  const sortOption = sort === 'popularity'
+  const sortOption = sort === 'popular' || sort === 'popularity'
     ? { totalViews: -1, 'publicVersion.publishedAt': -1 }
     : { 'publicVersion.publishedAt': -1 };
 
@@ -300,10 +372,22 @@ articleSchema.statics.getArticlesByReporter = function (authorId, { page = 1, li
   return this.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
 };
 
+// Staff search: title of the draft or of the public version, case-insensitive
+articleSchema.statics.staffTitleFilter = function (search) {
+  if (!search || typeof search !== 'string' || !search.trim()) return null;
+  const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [
+    { 'draftVersion.title': { $regex: escaped, $options: 'i' } },
+    { 'publicVersion.title': { $regex: escaped, $options: 'i' } }
+  ];
+};
+
 // Staff query: editor desk
-articleSchema.statics.getArticlesForEditor = function ({ page = 1, limit = 50, status } = {}) {
+articleSchema.statics.getArticlesForEditor = function ({ page = 1, limit = 50, status, search } = {}) {
   const query = {};
   if (status) query.status = status;
+  const titleFilter = this.staffTitleFilter(search);
+  if (titleFilter) query.$or = titleFilter;
   const skip = (Math.max(1, page) - 1) * limit;
   return this.find(query).populate('authorId', 'username fullName').sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
 };

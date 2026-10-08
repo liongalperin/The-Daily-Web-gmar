@@ -36,8 +36,14 @@ function createApp(customSessionStore = null) {
   }
 
   // Request Body Parsers
-  app.use(express.json({ limit: '5mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+  // 50,000-character articles (Hebrew is 2 bytes per letter in UTF-8) plus the other fields
+  app.use(express.json({ limit: '256kb' }));
+  app.use(express.urlencoded({ extended: true, limit: '256kb' }));
+  // No body or another content type leaves req.body undefined in Express 5; controllers expect an object
+  app.use((req, res, next) => {
+    if (req.body === undefined) req.body = {};
+    next();
+  });
 
   // Session Store Setup (Persists across server restarts via MongoDB)
   let sessionStore = customSessionStore;
@@ -119,12 +125,7 @@ function createApp(customSessionStore = null) {
     if (req.path.startsWith('/test')) {
       return next();
     }
-    res.status(404).render('pages/error', {
-      title: 'עמוד לא נמצא (404)',
-      statusCode: 404,
-      message: 'העמוד המבוקש אינו קיים במערכת.',
-      user: req.session?.user || null
-    });
+    res.status(404).render('error', { status: 404 });
   });
 
   // Global Error Handler Middleware

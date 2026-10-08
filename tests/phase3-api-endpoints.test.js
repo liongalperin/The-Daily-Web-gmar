@@ -262,9 +262,17 @@ async function runPhase3Tests() {
 
     // 8. Weather Widget API
     console.log('\n--- 8. Testing Weather Widget API ---');
-    const weatherRes = await request(app).get('/api/weather?city=Tel+Aviv');
-    if (weatherRes.status !== 200 || !weatherRes.body.weather.temperature) throw new Error('Weather API failed');
-    console.log('✅ Weather Widget API: Temp =', weatherRes.body.weather.temperature + '°C, Condition =', weatherRes.body.weather.condition);
+    const weatherRes = await request(app).get('/api/weather?city=tel-aviv');
+    if (weatherRes.status === 502) {
+      console.log('⚠️ Weather Widget API: Open-Meteo unreachable, got 502 { error } as specified');
+    } else if (weatherRes.status !== 200 || typeof weatherRes.body.temperature !== 'number' || typeof weatherRes.body.code !== 'number') {
+      throw new Error(`Weather API failed: ${weatherRes.status} ${JSON.stringify(weatherRes.body)}`);
+    } else {
+      console.log('✅ Weather Widget API: Temp =', weatherRes.body.temperature + '°C, WMO code =', weatherRes.body.code);
+    }
+    const badCityRes = await request(app).get('/api/weather?city=Tel+Aviv');
+    if (badCityRes.status !== 400 || !badCityRes.body.error) throw new Error(`Expected 400 for unknown city, got ${badCityRes.status}`);
+    console.log('✅ Weather Widget API: Unknown city correctly returns 400');
 
     console.log('\n🎉 ALL REFINED PHASE 3 API & STATE MACHINE TESTS PASSED SUCCESSFULLY!\n');
   } catch (error) {

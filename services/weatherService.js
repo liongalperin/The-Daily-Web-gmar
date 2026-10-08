@@ -5,121 +5,118 @@
  * - Free web service (no credit card).
  * - Weather data can lag up to 15 minutes max (cached to support thousands of concurrent users).
  * - Never crash the server if external service is down.
+ *
+ * Contract (docs/api-contract.md, GET /api/weather?city=):
+ *   { city, temperature, humidity, wind, code, fetchedAt }
+ * One reading per city is kept for 15 minutes, so thousands of readers cost at most
+ * 4 Open-Meteo calls every 15 minutes.
  */
 
 const logger = require('../config/logger');
 
-let weatherCache = {
-  data: null,
-  timestamp: 0
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const FETCH_TIMEOUT_MS = 5000;
+
+// Same cities and coordinates as the widget (public/js/weather.js)
+const CITIES = {
+  'tel-aviv': { lat: 32.0853, lon: 34.7818 },
+  jerusalem: { lat: 31.7683, lon: 35.2137 },
+  haifa: { lat: 32.794, lon: 34.9896 },
+  'beer-sheva': { lat: 31.252, lon: 34.7915 }
 };
 
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+// city -> { reading, timestamp }
+let weatherCache = {};
+// city -> Promise of the Open-Meteo call in progress, so a burst of readers shares one call
+let pending = {};
+
+async function fetchFromOpenMeteo(city) {
+  const { lat, lon } = CITIES[city];
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
+    wind_speed_unit: 'kmh',
+    timezone: 'auto'
+  });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Weather API responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const current = data && data.current;
+    if (!current || typeof current.temperature_2m !== 'number') {
+      throw new Error('Unexpected Open-Meteo payload');
+    }
+
+    return {
+      city,
+      temperature: current.temperature_2m,
+      humidity: current.relative_humidity_2m,
+      wind: current.wind_speed_10m,
+      code: current.weather_code,
+      fetchedAt: new Date().toISOString()
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 const weatherService = {
-  /**
-   * Fetch current weather with 15-minute caching
-   */
-  async getWeather(city = 'Tel Aviv') {
-    const now = Date.now();
+  CITIES,
 
-    // Check if valid cache exists
-    if (weatherCache.data && (now - weatherCache.timestamp < CACHE_TTL_MS)) {
-      return {
-        ...weatherCache.data,
-        cached: true,
-        ageMinutes: Math.floor((now - weatherCache.timestamp) / 60000)
-      };
+  isKnownCity(city) {
+    return Object.prototype.hasOwnProperty.call(CITIES, city);
+  },
+
+  /**
+   * Current weather for one of CITIES, cached for 15 minutes.
+   * If Open-Meteo fails, returns the last reading (with its old fetchedAt).
+   * Throws only when there is no reading at all.
+   */
+  async getWeather(city = 'tel-aviv') {
+    if (!this.isKnownCity(city)) {
+      throw new Error(`Unknown city: ${city}`);
+    }
+
+    const cached = weatherCache[city];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.reading;
+    }
+
+    if (!pending[city]) {
+      pending[city] = fetchFromOpenMeteo(city)
+        .then((reading) => {
+          weatherCache[city] = { reading, timestamp: Date.now() };
+          logger.info('Weather cache updated from Open-Meteo', { city, temp: reading.temperature });
+          return reading;
+        })
+        .finally(() => {
+          delete pending[city];
+        });
     }
 
     try {
-      // Use Open-Meteo (completely free, no API key, no credit card required)
-      // Tel Aviv coordinates: lat: 32.0853, lon: 34.7818
-      const lat = 32.0853;
-      const lon = 34.7818;
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Weather API responded with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      const currentWeather = data.current_weather;
-
-      // Map weathercode to human-readable condition and icon
-      const { condition, icon } = this.mapWeatherCode(currentWeather.weathercode);
-
-      const weatherData = {
-        city: city || 'Tel Aviv',
-        temperature: Math.round(currentWeather.temperature),
-        windSpeed: currentWeather.windspeed,
-        condition,
-        icon,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Update cache
-      weatherCache = {
-        data: weatherData,
-        timestamp: now
-      };
-
-      logger.info('Weather cache updated from Open-Meteo', { city, temp: weatherData.temperature });
-
-      return {
-        ...weatherData,
-        cached: false,
-        ageMinutes: 0
-      };
+      return await pending[city];
     } catch (error) {
-      logger.warn('Failed to fetch external weather, using fallback/cache:', error.message);
-
-      // Return stale cache if available
-      if (weatherCache.data) {
-        return {
-          ...weatherCache.data,
-          cached: true,
-          stale: true,
-          ageMinutes: Math.floor((now - weatherCache.timestamp) / 60000)
-        };
+      if (cached) {
+        logger.warn('Failed to fetch external weather, serving last reading:', error.message);
+        return cached.reading;
       }
-
-      // Default safe fallback if network is completely offline
-      return {
-        city: city || 'Tel Aviv',
-        temperature: 24,
-        windSpeed: 12,
-        condition: 'בהיר',
-        icon: '☀️',
-        updatedAt: new Date().toISOString(),
-        cached: true,
-        fallback: true,
-        ageMinutes: 0
-      };
+      logger.warn('Failed to fetch external weather, no reading to serve:', error.message);
+      throw error;
     }
-  },
-
-  mapWeatherCode(code) {
-    if (code === 0) return { condition: 'בהיר', icon: '☀️' };
-    if (code === 1 || code === 2) return { condition: 'מעונן חלקית', icon: '🌤️' };
-    if (code === 3) return { condition: 'מעונן', icon: '☁️' };
-    if ([45, 48].includes(code)) return { condition: 'ערפילי', icon: '🌫️' };
-    if ([51, 53, 55, 61, 63, 65].includes(code)) return { condition: 'גשום', icon: '🌧️' };
-    if ([71, 73, 75].includes(code)) return { condition: 'שלג', icon: '❄️' };
-    if ([80, 81, 82].includes(code)) return { condition: 'ממטרים', icon: '🌦️' };
-    if ([95, 96, 99].includes(code)) return { condition: 'סוער', icon: '⛈️' };
-    return { condition: 'נאה', icon: '🌤️' };
   },
 
   // Helper for tests to reset cache
   clearCache() {
-    weatherCache = { data: null, timestamp: 0 };
+    weatherCache = {};
+    pending = {};
   }
 };
 

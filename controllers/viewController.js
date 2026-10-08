@@ -6,7 +6,6 @@
 
 const mongoose = require('mongoose');
 const { User, Article, Comment, ViewStats } = require('../models');
-const weatherService = require('../services/weatherService');
 const logger = require('../config/logger');
 
 const viewController = {
@@ -17,46 +16,23 @@ const viewController = {
   async renderHome(req, res, next) {
     try {
       const category = req.query.category || '';
-      const sort = req.query.sort || 'date';
+      const sort = req.query.sort === 'popular' || req.query.sort === 'popularity' ? 'popular' : 'date';
+      const viewed = ['viewed', 'unviewed'].includes(req.query.viewed) ? req.query.viewed : 'all';
       const search = req.query.q || '';
       const page = parseInt(req.query.page, 10) || 1;
+      const viewedIds = req.session?.viewedArticles || [];
 
       const rawArticles = await Article.searchPublishedArticles({
         search,
         category,
         sort,
+        viewed,
+        viewedIds,
         page,
         limit: 20
       });
 
-      const weather = await weatherService.getWeather('Tel Aviv');
-      const viewedList = req.session?.viewedArticles || [];
-
-      const formattedArticles = rawArticles.map(a => {
-        const pub = a.publicVersion || {};
-        const authorObj = a.authorId && typeof a.authorId === 'object' ? a.authorId : null;
-        const authorName = authorObj ? (authorObj.fullName || authorObj.username) : (a.authorName || 'מערכת האתר');
-
-        return {
-          _id: a._id,
-          id: a._id.toString(),
-          title: pub.title || a.title || '',
-          summary: pub.summary || pub.snippet || a.summary || '',
-          content: pub.content || a.content || '',
-          imageUrl: pub.imageUrl || a.imageUrl || '/images/default-news.jpg',
-          category: a.category || '',
-          authorName,
-          author: authorObj,
-          authorId: a.authorId,
-          publishedAt: pub.publishedAt || a.publishedAt || a.createdAt,
-          createdAt: a.createdAt,
-          views: a.totalViews || a.views || 0,
-          totalViews: a.totalViews || a.views || 0,
-          commentsCount: a.commentsCount || 0,
-          viewed: viewedList.includes(a._id.toString()),
-          publicVersion: pub
-        };
-      });
+      const formattedArticles = await Article.toFeedItems(rawArticles, viewedIds);
 
       // Render the primary newsprint index view
       return res.render('index', {
@@ -65,14 +41,13 @@ const viewController = {
         filters: {
           q: search,
           category,
-          viewed: req.query.viewed || 'all',
+          viewed,
           sort
         },
         hasMore: rawArticles.length === 20,
         currentCategory: category,
         currentSort: sort,
         searchQuery: search,
-        weather,
         user: req.session?.user || null
       });
     } catch (error) {
@@ -122,14 +97,12 @@ const viewController = {
       }
 
       const comments = await Comment.getCommentsByArticle(article._id, { limit: 50 });
-      const weather = await weatherService.getWeather('Tel Aviv');
       const canonical = `${req.protocol}://${req.get('host')}/articles/${article._id}`;
 
       return res.render('article', {
         title: `${article.publicVersion.title} - The Daily Web`,
         article,
         comments,
-        weather,
         canonical,
         user: req.session?.user || null
       });
@@ -300,12 +273,8 @@ const viewController = {
 
       const query = {};
       if (status) query.status = status;
-      if (search) {
-        query.$or = [
-          { 'draftVersion.title': new RegExp(search, 'i') },
-          { 'publicVersion.title': new RegExp(search, 'i') }
-        ];
-      }
+      const titleFilter = Article.staffTitleFilter(search);
+      if (titleFilter) query.$or = titleFilter;
 
       const [articles, allCount, draftCount, pendingCount, pubCount, retCount] = await Promise.all([
         Article.find(query).sort({ updatedAt: -1 }).limit(50).populate('authorId'),

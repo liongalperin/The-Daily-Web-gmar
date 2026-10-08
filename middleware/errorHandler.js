@@ -29,6 +29,15 @@ function errorHandler(err, req, res, next) {
     message = `Invalid value for parameter: ${err.path || 'id'}`;
   }
 
+  // Body parser errors: never echo the parser's own message
+  if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Invalid JSON in request body';
+  } else if (err.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'Request body is too large';
+  }
+
   // Handle MongoDB Duplicate Key Error (Code 11000)
   if (err.code === 11000) {
     statusCode = 409;
@@ -43,6 +52,12 @@ function errorHandler(err, req, res, next) {
     logger.warn(`[${req.method}] ${req.originalUrl} - ${statusCode} ${message}`, { details });
   }
 
+  // Internal details stay in the log
+  if (statusCode >= 500) {
+    message = 'Server error';
+    details = null;
+  }
+
   const isApi = req.originalUrl?.startsWith('/api/') || req.xhr || req.headers.accept?.includes('application/json');
 
   if (isApi) {
@@ -54,28 +69,15 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // Safe fallback for HTML requests: render error page with callback to avoid uncaught view missing exceptions
+  // HTML requests: the site's error page; plain HTML if even that fails to render
   res.status(statusCode);
-  if (req.app.get('view engine') && res.render) {
-    return res.render(
-      'pages/error',
-      {
-        title: 'שגיאה',
-        statusCode,
-        message,
-        user: req.session?.user || null
-      },
-      (renderErr, html) => {
-        if (renderErr) {
-          // If error.ejs does not exist, safely respond with HTML string
-          return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>שגיאה ${statusCode}</title></head><body><h1>שגיאה ${statusCode}</h1><p>${message}</p><a href="/">חזרה לעמוד הראשי</a></body></html>`);
-        }
-        return res.send(html);
-      }
-    );
-  }
-
-  return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>שגיאה ${statusCode}</title></head><body><h1>שגיאה ${statusCode}</h1><p>${message}</p><a href="/">חזרה לעמוד הראשי</a></body></html>`);
+  return res.render('error', { status: statusCode }, (renderErr, html) => {
+    if (renderErr) {
+      logger.error('Failed to render error page', renderErr);
+      return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${statusCode}</title></head><body><h1>${statusCode}</h1><a href="/">The Daily Web</a></body></html>`);
+    }
+    return res.send(html);
+  });
 }
 
 module.exports = errorHandler;

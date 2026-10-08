@@ -322,7 +322,7 @@ async function seedDatabase(customUri) {
 
       const title = `${headline} (${i + 1})`;
       const summary = `${headline} - דיווח בלעדי מאת כתב The Daily Web על ההתפתחויות המרכזיות.`;
-      const content = `<p>${headline}</p><p>במסגרת המעקב השוטף של מערכת החדשות אחר הנושא, מדווח כי גורמים בכירים מעורבים בקידום היוזמה. הציבור מוזמן להתעדכן בעמוד זה.</p>`;
+      const content = `${headline}\n\nבמסגרת המעקב השוטף של מערכת החדשות אחר הנושא, מדווח כי גורמים בכירים מעורבים בקידום היוזמה. הציבור מוזמן להתעדכן בעמוד זה.`;
 
       const articleId = new mongoose.Types.ObjectId();
 
@@ -384,7 +384,7 @@ async function seedDatabase(customUri) {
 
       const title = `[ממתין לאישור] ${headline}`;
       const summary = `טיוטת כתבה שהוגשה על ידי ${author.fullName} וממתינה לאישור עורך.`;
-      const content = `<p>טיוטה שהוגשה לבדיקה: ${headline}</p><p>כתב: ${author.fullName}. הכתבה הושלמה ונשלחה לאישור.</p>`;
+      const content = `טיוטה שהוגשה לבדיקה: ${headline}\n\nכתב: ${author.fullName}. הכתבה הושלמה ונשלחה לאישור.`;
 
       articlesToInsert.push({
         authorId: author._id,
@@ -417,7 +417,7 @@ async function seedDatabase(customUri) {
 
       const title = `טיוטה בעבודה: ${headline}`;
       const summary = `כתבה בתהליך עריכה שוטף על ידי ${author.fullName}.`;
-      const content = `<p>עבודה שוטפת: ${headline}</p><p>הערות אישיות: להרחיב על הרקע ולצרף תמונות נוספות.</p>`;
+      const content = `עבודה שוטפת: ${headline}\n\nהערות אישיות: להרחיב על הרקע ולצרף תמונות נוספות.`;
 
       articlesToInsert.push({
         authorId: author._id,
@@ -457,7 +457,7 @@ async function seedDatabase(customUri) {
 
       const title = `[הוחזר לתיקונים] ${headline}`;
       const summary = `כתבה שהוחזרה לכתב לצורך ביצוע תיקונים והבהרות.`;
-      const content = `<p>${headline}</p><p>תוכן ראשוני שנבדק על ידי עורך ודורש השלמות.</p>`;
+      const content = `${headline}\n\nתוכן ראשוני שנבדק על ידי עורך ודורש השלמות.`;
 
       articlesToInsert.push({
         authorId: author._id,

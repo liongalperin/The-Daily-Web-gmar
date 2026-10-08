@@ -89,20 +89,17 @@ All error responses return `{ "success": false, "error": "...", "details": [...]
 
 ### `GET /api/weather`
 *   **Purpose:** Fetch cached weather data for the sidebar widget.
-*   **Query Params:** `?city=Tel+Aviv` (default: 'Tel Aviv')
-*   **Cache:** Server caches response up to 15 minutes to support thousands of concurrent users.
-*   **Response (`200 OK`):**
+*   **Query Params:** `?city=tel-aviv` (one of `tel-aviv`, `jerusalem`, `haifa`, `beer-sheva`; default `tel-aviv`). Anything else returns `400 { error }`.
+*   **Cache:** Server keeps one reading per city for 15 minutes to support thousands of concurrent users. If Open-Meteo fails it returns the last reading (with its old `fetchedAt`), or `502 { error }` if there is none.
+*   **Response (`200 OK`):** `code` is the WMO weather code, `humidity` in %, `wind` in km/h.
     ```json
     {
-      "success": true,
-      "weather": {
-        "city": "Tel Aviv",
-        "temperature": 25,
-        "condition": "מעונן חלקית",
-        "icon": "🌤️",
-        "updatedAt": "2026-10-07T14:00:00.000Z",
-        "cached": true
-      }
+      "city": "tel-aviv",
+      "temperature": 25.3,
+      "humidity": 61,
+      "wind": 12.4,
+      "code": 2,
+      "fetchedAt": "2026-10-07T14:00:00.000Z"
     }
     ```
 

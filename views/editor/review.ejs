@@ -80,12 +80,12 @@
 
         <div class="decision" id="decision">
           <div class="page-head__actions">
-            <button type="button" class="btn btn--primary" id="approve"<%= a.editorCanDecide ? '' : ' disabled' %>><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('review.approve') %></button>
+            <button type="button" class="btn btn--primary" id="approve"<%= a.editorCanPublish ? '' : ' disabled' %>><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><%= t('review.approve') %></button>
             <button type="button" class="btn btn--ghost" id="return-toggle" aria-expanded="false" aria-controls="return-note"<%= a.editorCanDecide ? '' : ' disabled' %>><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg><%= t('review.return') %></button>
             <a class="btn btn--ghost" href="/editor/articles/<%= a.id %>/edit"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg><%= t('review.editSelf') %></a>
             <button type="button" class="btn btn--danger" id="delete-article"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg><%= t('desk.delete') %></button>
           </div>
-          <% if (!a.editorCanDecide) { %><p class="field__feedback"><%= t('review.notPending') %></p><% } %>
+          <% if (!a.editorCanPublish) { %><p class="field__feedback"><%= t('review.notPending') %></p><% } %>
 
           <form class="decision__note field" id="return-note" hidden novalidate>
             <label class="field__label" for="return-text"><%= t('review.noteLabel') %></label>

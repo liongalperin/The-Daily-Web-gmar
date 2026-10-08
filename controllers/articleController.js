@@ -7,6 +7,13 @@ const mongoose = require('mongoose');
 const { Article, ViewStats, Comment } = require('../models');
 const logger = require('../config/logger');
 
+// A URL with a scheme other than http(s), e.g. "javascript:" or "data:". Never stored, not even in a draft.
+function hasForbiddenScheme(url) {
+  if (typeof url !== 'string') return false;
+  const value = url.trim();
+  return /^[a-z][a-z0-9+.-]*:/i.test(value) && !/^https?:/i.test(value);
+}
+
 const articleController = {
   /**
    * Public: Fetch articles for infinite scroll feed and search
@@ -17,37 +24,21 @@ const articleController = {
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
       const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
       const category = req.query.category || '';
-      const sort = req.query.sort || 'date'; // 'date' | 'popularity'
+      const sort = req.query.sort || 'date'; // 'date' | 'popular'
       const search = req.query.q || req.query.search || '';
+      const viewedIds = req.session?.viewedArticles || [];
 
       const rawArticles = await Article.searchPublishedArticles({
         search,
         category,
         sort,
+        viewed: req.query.viewed || 'all',
+        viewedIds,
         page,
         limit
       });
 
-      // Format & flatten properties for Developer 2's clean frontend rendering
-      const articles = rawArticles.map(a => ({
-        id: a._id,
-        _id: a._id,
-        title: a.publicVersion?.title || '',
-        summary: a.publicVersion?.summary || a.publicVersion?.snippet || '',
-        snippet: a.publicVersion?.snippet || a.publicVersion?.summary || '',
-        imageUrl: a.publicVersion?.imageUrl || '/images/default-news.jpg',
-        category: a.category,
-        publishedAt: a.publicVersion?.publishedAt || a.createdAt,
-        author: a.authorId ? {
-          id: a.authorId._id || a.authorId,
-          username: a.authorId.username,
-          fullName: a.authorId.fullName || a.authorId.username
-        } : null,
-        authorId: a.authorId, // backward-compat
-        views: a.totalViews || 0,
-        totalViews: a.totalViews || 0,
-        publicVersion: a.publicVersion // backward-compat
-      }));
+      const articles = await Article.toFeedItems(rawArticles, viewedIds);
 
       // Calculate if more articles exist for Developer 2's infinite scroll observer
       const hasMore = rawArticles.length === limit;
@@ -100,10 +91,10 @@ const articleController = {
           snippet: article.publicVersion.snippet || article.publicVersion.summary,
           imageUrl: article.publicVersion.imageUrl,
           publishedAt: article.publicVersion.publishedAt,
+          authorName: article.authorId ? (article.authorId.fullName || article.authorId.username) : '',
           author: article.authorId ? {
             id: article.authorId._id,
-            username: article.authorId.username,
-            fullName: article.authorId.fullName
+            fullName: article.authorId.fullName || article.authorId.username
           } : null,
           views: article.totalViews + 1,
           totalViews: article.totalViews + 1,
@@ -124,10 +115,14 @@ const articleController = {
       const { title, content, summary, snippet, category, imageUrl } = req.body;
       const authorId = req.session.user.id;
 
+      if (hasForbiddenScheme(imageUrl)) {
+        return res.status(400).json({ success: false, error: 'The image URL must be an http(s) link or a path on this site.' });
+      }
+
       const article = await Article.createArticle({
         authorId,
         category: category || 'news',
-        title: title || 'כתבה חדשה ללא כותרת',
+        title: title || '',
         content: content || '',
         summary: summary || snippet || '',
         snippet: summary || snippet || '',
@@ -158,6 +153,11 @@ const articleController = {
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ success: false, error: 'Invalid article ID format.' });
+      }
+
+      // Drafts may hold a half-typed URL, but never a javascript:/data: one
+      if (hasForbiddenScheme(imageUrl)) {
+        return res.status(400).json({ success: false, error: 'The image URL must be an http(s) link or a path on this site.' });
       }
 
       const existingArticle = req.article || await Article.findById(id);
@@ -224,6 +224,19 @@ const articleController = {
         });
       }
 
+      // A published article goes back to review only with changes to review
+      if (article.status === 'Published' && !Article.hasDraftChanges(article)) {
+        return res.status(409).json({
+          success: false,
+          error: 'This article has no changes since it was published.'
+        });
+      }
+
+      const problem = Article.draftProblem(article.draftVersion);
+      if (problem) {
+        return res.status(400).json({ success: false, error: problem });
+      }
+
       const updated = await Article.submitForReview(id);
       logger.audit('ARTICLE_SUBMITTED_FOR_REVIEW', req.session.user.id, { articleId: id });
 
@@ -268,12 +281,13 @@ const articleController = {
    */
   async getEditorArticles(req, res, next) {
     try {
-      const { page, limit, status } = req.query;
+      const { page, limit, status, q } = req.query;
 
       const articles = await Article.getArticlesForEditor({
         page: parseInt(page, 10) || 1,
         limit: parseInt(limit, 10) || 50,
-        status
+        status,
+        search: q
       });
 
       return res.json({
@@ -350,6 +364,29 @@ const articleController = {
         });
       }
 
+      // Publishing a live article again (the editor's own edits) needs something new to publish
+      if (article.status === 'Published' && !Article.hasDraftChanges(article)) {
+        return res.status(409).json({
+          success: false,
+          error: 'This article has no changes since it was published.'
+        });
+      }
+
+      if (status === 'Published') {
+        const problem = Article.draftProblem(article.draftVersion);
+        if (problem) {
+          return res.status(400).json({ success: false, error: problem });
+        }
+      }
+
+      const note = typeof editorNote === 'string' ? editorNote.trim() : '';
+      if (status === 'Returned' && !note) {
+        return res.status(400).json({
+          success: false,
+          error: 'A note for the reporter is required when returning an article.'
+        });
+      }
+
       let updatedArticle;
       if (status === 'Published') {
         updatedArticle = await Article.publishArticle(id);
@@ -358,10 +395,10 @@ const articleController = {
           publishHistoryLength: updatedArticle.publishHistory.length
         });
       } else if (status === 'Returned') {
-        updatedArticle = await Article.returnArticle(id, editorNote || '');
+        updatedArticle = await Article.returnArticle(id, note);
         logger.audit('ARTICLE_RETURNED_FOR_REVISIONS', req.session.user.id, {
           articleId: id,
-          note: editorNote
+          note
         });
       }
 

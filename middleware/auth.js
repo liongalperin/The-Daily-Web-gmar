@@ -73,12 +73,7 @@ function requireRole(...roles) {
           error: 'Forbidden: You do not have permission to access this resource.'
         });
       }
-      return res.status(403).render('pages/error', {
-        title: 'אין הרשאת גישה',
-        statusCode: 403,
-        message: 'אין לך הרשאה מתאימה לצפייה בעמוד זה.',
-        user: req.session?.user || null
-      });
+      return res.status(403).render('error', { status: 403 });
     }
 
     next();

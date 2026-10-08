@@ -145,7 +145,7 @@ async function runPhase5Tests() {
     const repOnEdDeskRes = await request(app)
       .get('/editor/desk')
       .set('Cookie', reporterCookie);
-    if (repOnEdDeskRes.status !== 403 || !repOnEdDeskRes.text.includes('אין הרשאת גישה')) {
+    if (repOnEdDeskRes.status !== 403 || !repOnEdDeskRes.text.includes('אין גישה')) {
       throw new Error('Reporter was not blocked with styled 403 page on editor desk');
     }
     console.log('✅ Reporter access to /editor/desk blocked with styled 403 error page');
