@@ -14,7 +14,7 @@ const authController = {
     try {
       const { username, password } = req.body;
 
-      if (!username || !password) {
+      if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
         return res.status(400).json({
           success: false,
           error: 'Username and password are required.'
@@ -142,19 +142,35 @@ const authController = {
   },
 
   /**
-   * Register a new user
-   * Public registration allows creating Reporter accounts.
-   * Creating an Editor account requires existing Editor authentication (or seed/admin key).
+   * Create a staff account (Reporter or Editor)
+   * Only a logged-in Editor can create accounts. ADMIN_SETUP_KEY (off unless set) allows creating
+   * accounts without logging in, e.g. the first Editor.
    */
   async register(req, res, next) {
     try {
       const { username, password, role = 'Reporter', fullName } = req.body;
 
-      if (!username || !password) {
+      // Staff accounts aren't open to the public: guests may only use the public site
+      const callerIsEditor = req.session?.user?.role === 'Editor';
+      const setupKey = process.env.ADMIN_SETUP_KEY;
+      const isSetupKey = Boolean(setupKey) && req.headers['x-admin-key'] === setupKey;
+      if (!callerIsEditor && !isSetupKey) {
+        logger.audit('UNAUTHORIZED_USER_CREATION_ATTEMPT', req.session?.user?.id || null, { role });
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Only Editors can create staff accounts.'
+        });
+      }
+
+      if (typeof username !== 'string' || !username.trim() || typeof password !== 'string' || !password) {
         return res.status(400).json({
           success: false,
           error: 'Username and password are required.'
         });
+      }
+
+      if (fullName !== undefined && typeof fullName !== 'string') {
+        return res.status(400).json({ success: false, error: 'Full name must be text.' });
       }
 
       if (!['Reporter', 'Editor'].includes(role)) {
@@ -162,21 +178,6 @@ const authController = {
           success: false,
           error: 'Role must be either Reporter or Editor.'
         });
-      }
-
-      // Privilege escalation protection: only authenticated Editors can create other Editors
-      if (role === 'Editor') {
-        const callerIsEditor = req.session?.user?.role === 'Editor';
-        // Optional setup key for creating the first Editor; disabled unless ADMIN_SETUP_KEY is set
-        const setupKey = process.env.ADMIN_SETUP_KEY;
-        const isSetupKey = Boolean(setupKey) && req.headers['x-admin-key'] === setupKey;
-        if (!callerIsEditor && !isSetupKey) {
-          logger.audit('UNAUTHORIZED_EDITOR_CREATION_ATTEMPT', req.session?.user?.id || null, { username });
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only existing Editors can register new Editor accounts.'
-          });
-        }
       }
 
       if (password.length < 6) {

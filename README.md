@@ -19,7 +19,7 @@ A responsive web application for writing, editing, approving and publishing news
 | **Reporter (כתב)** | `reporter1` … `reporter5` | `password123` | [`/reporter`](http://localhost:3000/reporter) | Create articles, auto-saving editor, submit for approval, see the editor's note on returned articles, resubmit, edit published articles. |
 | **Guest (אורח)** | *no login* | – | [`/`](http://localhost:3000/) | News feed with infinite scroll, search, filters and sorting, full article pages, comments (max 3 per minute per device). |
 
-Editor accounts aren't created through the UI. The seeded `editor` account covers all Editor features. If another Editor is needed, a logged-in Editor can call `POST /api/auth/register` with `"role": "Editor"`.
+There's no public sign-up: guests can only read. Staff accounts are created by a logged-in Editor through `POST /api/auth/register` (with `"role": "Reporter"` or `"Editor"`); the seeded accounts cover everything needed to try the system.
 
 ---
 
@@ -70,7 +70,7 @@ No configuration is needed. To change a setting, copy `.env.example` to `.env` a
 | `PORT` | `3000` | HTTP port. |
 | `MONGODB_URI` | `mongodb://localhost:27017/dailyweb` | Database. Can point to MongoDB Atlas instead (`mongodb+srv://...`). |
 | `SESSION_SECRET` | *(generated)* | Signs the session cookie. If empty, a random secret is generated on first start and saved to `.session-secret` (ignored by Git), so logins still survive restarts. Required when `NODE_ENV=production`. |
-| `ADMIN_SETUP_KEY` | *(off)* | Optional. Lets `POST /api/auth/register` create an Editor without being logged in, by sending the same value in an `X-Admin-Key` header. Choose any value yourself and restart the server after setting it. |
+| `ADMIN_SETUP_KEY` | *(off)* | Optional. Lets `POST /api/auth/register` create a staff account (e.g. the first Editor) without being logged in, by sending the same value in an `X-Admin-Key` header. Choose any value yourself and restart the server after setting it. |
 
 Weather uses [Open-Meteo](https://open-meteo.com/), which needs no API key or credit card.
 
