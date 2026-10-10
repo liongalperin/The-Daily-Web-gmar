@@ -165,11 +165,21 @@ const articleController = {
         return res.status(404).json({ success: false, error: 'Article not found.' });
       }
 
-      // Concurrency lock: prevent auto-saving while article is pending editorial review
-      if (existingArticle.status === 'Pending') {
+      const role = req.session.user.role;
+
+      // While an article waits for review only the editor may change it
+      if (existingArticle.status === 'Pending' && role !== 'Editor') {
         return res.status(409).json({
           success: false,
           error: 'Article is currently pending editorial review and cannot be modified.'
+        });
+      }
+
+      // The reporter's unsubmitted update to a live article stays theirs until they submit it
+      if (role === 'Editor' && Article.hasUnsubmittedReporterChanges(existingArticle)) {
+        return res.status(409).json({
+          success: false,
+          error: 'The reporter is working on an update to this article. It can be edited once they submit it.'
         });
       }
 
@@ -180,7 +190,7 @@ const articleController = {
         snippet: summary || snippet,
         category,
         imageUrl
-      });
+      }, role);
 
       return res.json({
         success: true,
@@ -369,6 +379,14 @@ const articleController = {
         return res.status(409).json({
           success: false,
           error: 'This article has no changes since it was published.'
+        });
+      }
+
+      // A reporter's changes reach readers only after the reporter submits them for review
+      if (Article.hasUnsubmittedReporterChanges(article)) {
+        return res.status(409).json({
+          success: false,
+          error: 'The reporter has not submitted these changes for review yet.'
         });
       }
 

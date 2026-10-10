@@ -79,6 +79,12 @@ const articleSchema = new mongoose.Schema(
       updatedAt: {
         type: Date,
         default: Date.now
+      },
+      // Who saved the draft last; an editor may publish their own edits to a live article directly
+      editedByRole: {
+        type: String,
+        enum: ['Reporter', 'Editor'],
+        default: 'Reporter'
       }
     },
     editorNote: {
@@ -135,7 +141,8 @@ const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl', 'category'];
 
 // State Machine Transition Rules
 // Published -> Pending (reporter) and Published -> Published (editor's own edits) also need
-// draft changes; the controllers check that with hasDraftChanges().
+// draft changes; the controllers check that with hasDraftChanges(), and for Published -> Published
+// that the changes aren't a reporter's unsubmitted work (hasUnsubmittedReporterChanges()).
 articleSchema.statics.canTransition = function (currentStatus, targetStatus, role) {
   if (role === 'Reporter') {
     if (currentStatus === 'Draft' && targetStatus === 'Pending') return true;
@@ -163,6 +170,13 @@ articleSchema.statics.hasDraftChanges = function (article) {
   const pub = article.publicVersion || {};
   if (!pub.publishedAt) return true;
   return VERSION_FIELDS.some((field) => (draft[field] || '') !== (pub[field] || ''));
+};
+
+// A live article whose unpublished changes were made by the reporter and not submitted yet.
+// Those changes reach readers only through Pending -> Published.
+articleSchema.statics.hasUnsubmittedReporterChanges = function (article) {
+  return article.status === 'Published' && this.hasDraftChanges(article) &&
+    (article.draftVersion?.editedByRole || 'Reporter') !== 'Editor';
 };
 
 // Image URLs: empty, a full http(s) link, or a path on this site ("/images/..."), never "//host" or "javascript:"
@@ -291,7 +305,7 @@ articleSchema.statics.searchPublishedArticles = function ({
     .lean();
 };
 
-articleSchema.statics.updateDraft = async function (id, draftData) {
+articleSchema.statics.updateDraft = async function (id, draftData, editedByRole = 'Reporter') {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
 
   const summaryText = draftData.summary || draftData.snippet || (draftData.content ? draftData.content.slice(0, 150) + '...' : '');
@@ -302,7 +316,8 @@ articleSchema.statics.updateDraft = async function (id, draftData) {
       'draftVersion.snippet': summaryText,
       'draftVersion.summary': summaryText,
       'draftVersion.imageUrl': draftData.imageUrl,
-      'draftVersion.updatedAt': new Date()
+      'draftVersion.updatedAt': new Date(),
+      'draftVersion.editedByRole': editedByRole
     }
   };
 

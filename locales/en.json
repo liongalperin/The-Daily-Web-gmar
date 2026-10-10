@@ -182,6 +182,7 @@
   "editor.publishedTitle": "Editing a published article",
   "editor.publishedNote": "Readers keep seeing the published version until an editor approves your changes.",
   "editor.pendingNote": "This article is waiting for an editor. You can edit it again once it's approved or returned.",
+  "editor.reporterWorkingNote": "The reporter is working on an update to this article that hasn't been submitted yet. You can edit it once they submit it for approval.",
   "editor.editorMode": "You're editing as the editor. Changes save automatically and go live when you approve the article.",
   "editor.submitFailed": "The latest changes aren't saved yet, so the article wasn't submitted. Try again in a moment.",
   "desk.eyebrow": "Editor desk",
