@@ -7,21 +7,32 @@ const mongoose = require('mongoose');
 const { Comment, Article } = require('../models');
 const logger = require('../config/logger');
 
+const MAX_COMMENT_LENGTH = 1000;
+const MAX_NAME_LENGTH = 50;
+
 const commentController = {
   /**
-   * Public / Guest: Create a new comment on an article
-   * Protected by commentRateLimiter (3 comments/min per device/IP)
-   * POST /api/comments
+   * Checks a new comment before the rate limiter runs, so a rejected comment
+   * doesn't use up one of the guest's 3 comments per minute.
+   * POST /api/comments (first middleware)
    */
-  async createComment(req, res, next) {
+  async validateComment(req, res, next) {
     try {
-      const { articleId, content, authorName, deviceId } = req.body;
+      const { articleId, content, authorName } = req.body;
 
-      if (!articleId || !content || typeof content !== 'string' || !content.trim()) {
+      if (typeof articleId !== 'string' || typeof content !== 'string' || !content.trim()) {
         return res.status(400).json({
           success: false,
           error: 'Article ID and comment content are required.'
         });
+      }
+
+      if (content.trim().length > MAX_COMMENT_LENGTH) {
+        return res.status(400).json({ success: false, error: `A comment can be at most ${MAX_COMMENT_LENGTH} characters.` });
+      }
+
+      if (typeof authorName === 'string' && authorName.trim().length > MAX_NAME_LENGTH) {
+        return res.status(400).json({ success: false, error: `A name can be at most ${MAX_NAME_LENGTH} characters.` });
       }
 
       if (!mongoose.Types.ObjectId.isValid(articleId)) {
@@ -31,14 +42,29 @@ const commentController = {
         });
       }
 
-      // Check if article exists and is published
-      const article = await Article.findById(articleId);
+      // Comments only on articles readers can see
+      const article = await Article.findById(articleId).select('publicVersion.publishedAt');
       if (!article || !article.publicVersion?.publishedAt) {
         return res.status(404).json({
           success: false,
           error: 'Cannot comment on non-existent or unpublished article.'
         });
       }
+
+      return next();
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Public / Guest: Create a new comment on an article
+   * Runs after validateComment and commentRateLimiter (3 comments/min per device)
+   * POST /api/comments
+   */
+  async createComment(req, res, next) {
+    try {
+      const { articleId, content, authorName, deviceId } = req.body;
 
       const ipAddress = req.clientIp || req.ip || '127.0.0.1';
       const cleanDeviceId = req.clientDeviceId || (typeof deviceId === 'string' ? deviceId.trim() : '');
@@ -81,7 +107,7 @@ const commentController = {
     try {
       const articleId = req.query.articleId || req.params.articleId;
       const page = parseInt(req.query.page, 10) || 1;
-      const limit = parseInt(req.query.limit, 10) || 50;
+      const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 100);
 
       if (!articleId) {
         return res.status(400).json({

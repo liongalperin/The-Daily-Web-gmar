@@ -6,6 +6,26 @@
 const mongoose = require('mongoose');
 const { Article, ViewStats, Comment } = require('../models');
 const logger = require('../config/logger');
+const { CATEGORIES } = require('../utils/categories');
+
+const DRAFT_TEXT_FIELDS = ['title', 'content', 'summary', 'snippet', 'imageUrl', 'category'];
+
+// Why a draft body from the client can't be saved, or null. Fields are optional but must be text,
+// and the section must be one of the site's sections.
+function draftInputProblem(body) {
+  for (const field of DRAFT_TEXT_FIELDS) {
+    if (body[field] !== undefined && body[field] !== null && typeof body[field] !== 'string') {
+      return `The field "${field}" must be text.`;
+    }
+  }
+  if (body.category && !CATEGORIES.includes(body.category)) return 'Unknown section.';
+  return null;
+}
+
+// Page size from the query string, between 1 and 100
+function pageSize(value, fallback) {
+  return Math.min(Math.max(1, parseInt(value, 10) || fallback), 100);
+}
 
 // A URL with a scheme other than http(s), e.g. "javascript:" or "data:". Never stored, not even in a draft.
 function hasForbiddenScheme(url) {
@@ -22,7 +42,7 @@ const articleController = {
   async getPublicArticles(req, res, next) {
     try {
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-      const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
+      const limit = pageSize(req.query.limit, 20);
       const category = req.query.category || '';
       const sort = req.query.sort || 'date'; // 'date' | 'popular'
       const search = req.query.q || req.query.search || '';
@@ -115,6 +135,11 @@ const articleController = {
       const { title, content, summary, snippet, category, imageUrl } = req.body;
       const authorId = req.session.user.id;
 
+      const inputProblem = draftInputProblem(req.body);
+      if (inputProblem) {
+        return res.status(400).json({ success: false, error: inputProblem });
+      }
+
       if (hasForbiddenScheme(imageUrl)) {
         return res.status(400).json({ success: false, error: 'The image URL must be an http(s) link or a path on this site.' });
       }
@@ -156,6 +181,11 @@ const articleController = {
       }
 
       // Drafts may hold a half-typed URL, but never a javascript:/data: one
+      const inputProblem = draftInputProblem(req.body);
+      if (inputProblem) {
+        return res.status(400).json({ success: false, error: inputProblem });
+      }
+
       if (hasForbiddenScheme(imageUrl)) {
         return res.status(400).json({ success: false, error: 'The image URL must be an http(s) link or a path on this site.' });
       }
@@ -272,7 +302,7 @@ const articleController = {
 
       const articles = await Article.getArticlesByReporter(authorId, {
         page: parseInt(page, 10) || 1,
-        limit: parseInt(limit, 10) || 50,
+        limit: pageSize(limit, 50),
         status
       });
 
@@ -295,7 +325,7 @@ const articleController = {
 
       const articles = await Article.getArticlesForEditor({
         page: parseInt(page, 10) || 1,
-        limit: parseInt(limit, 10) || 50,
+        limit: pageSize(limit, 50),
         status,
         search: q
       });

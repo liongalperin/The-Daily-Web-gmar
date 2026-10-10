@@ -8,8 +8,9 @@ const commentController = require('../../controllers/commentController');
 const { commentRateLimiter } = require('../../middleware/rateLimiter');
 const { requireAuth, requireRole } = require('../../middleware/auth');
 
-// Public comment creation with rate limiting (3 comments per minute per device/IP)
-router.post('/', commentRateLimiter, commentController.createComment);
+// Public comment creation: invalid comments are rejected before the rate limit
+// (3 comments per minute per device) counts them
+router.post('/', commentController.validateComment, commentRateLimiter, commentController.createComment);
 
 // Get comments for an article
 router.get('/', commentController.getComments);

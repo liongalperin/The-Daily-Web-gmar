@@ -125,16 +125,18 @@ articleSchema.virtual('commentsCount', {
   count: true
 });
 
-// High performance indexes matching exact query patterns
-articleSchema.index({ 'publicVersion.publishedAt': -1 });
-articleSchema.index({ category: 1, 'publicVersion.publishedAt': -1 });
-articleSchema.index({ totalViews: -1, 'publicVersion.publishedAt': -1 });
-articleSchema.index({ category: 1, totalViews: -1, 'publicVersion.publishedAt': -1 });
+// Indexes matching the feed's filters and sorts. Every sort ends with _id, so articles with the
+// same date or view count keep a fixed order and paging never repeats or skips one.
+articleSchema.index({ 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ category: 1, 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ category: 1, totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 });
 
-// Indexes for Staff Dashboards (Reporter & Editor)
-articleSchema.index({ status: 1, updatedAt: -1 });
-articleSchema.index({ authorId: 1, status: 1, updatedAt: -1 });
-articleSchema.index({ authorId: 1, updatedAt: -1 });
+// Indexes for the reporter and editor desks
+articleSchema.index({ updatedAt: -1, _id: -1 });
+articleSchema.index({ status: 1, updatedAt: -1, _id: -1 });
+articleSchema.index({ authorId: 1, status: 1, updatedAt: -1, _id: -1 });
+articleSchema.index({ authorId: 1, updatedAt: -1, _id: -1 });
 
 // Fields that make up a version; a draft differs from the public version if any of them differ
 const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl', 'category'];
@@ -291,8 +293,8 @@ articleSchema.statics.searchPublishedArticles = function ({
   }
 
   const sortOption = sort === 'popular' || sort === 'popularity'
-    ? { totalViews: -1, 'publicVersion.publishedAt': -1 }
-    : { 'publicVersion.publishedAt': -1 };
+    ? { totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 }
+    : { 'publicVersion.publishedAt': -1, _id: -1 };
 
   const skip = (Math.max(1, page) - 1) * limit;
 
@@ -384,7 +386,7 @@ articleSchema.statics.getArticlesByReporter = function (authorId, { page = 1, li
   const query = { authorId };
   if (status) query.status = status;
   const skip = (Math.max(1, page) - 1) * limit;
-  return this.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
+  return this.find(query).sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
 };
 
 // Staff search: title of the draft or of the public version, case-insensitive
@@ -404,7 +406,7 @@ articleSchema.statics.getArticlesForEditor = function ({ page = 1, limit = 50, s
   const titleFilter = this.staffTitleFilter(search);
   if (titleFilter) query.$or = titleFilter;
   const skip = (Math.max(1, page) - 1) * limit;
-  return this.find(query).populate('authorId', 'username fullName').sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
+  return this.find(query).populate('authorId', 'username fullName').sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
 };
 
 articleSchema.statics.deleteArticleById = async function (id) {

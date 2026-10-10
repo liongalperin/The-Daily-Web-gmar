@@ -89,8 +89,10 @@ commentSchema.statics.createComment = function (data) {
 commentSchema.statics.getCommentsByArticle = function (articleId, { page = 1, limit = 50 } = {}) {
   if (!mongoose.Types.ObjectId.isValid(articleId)) return [];
   const skip = (Math.max(1, page) - 1) * limit;
+  // IP address and device ID are kept only for the rate limit, never shown
   return this.find({ articleId })
-    .sort({ createdAt: -1 })
+    .select('-ipAddress -deviceId')
+    .sort({ createdAt: -1, _id: -1 })
     .skip(skip)
     .limit(limit)
     .lean();

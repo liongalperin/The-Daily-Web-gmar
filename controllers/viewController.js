@@ -138,11 +138,11 @@ const viewController = {
     try {
       const { username, password } = req.body;
 
-      if (!username || !password) {
+      if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
         return res.status(401).render('login', {
           title: 'כניסת צוות המערכת - The Daily Web',
           error: true,
-          username: username || '',
+          username: typeof username === 'string' ? username : '',
           user: null
         });
       }
@@ -180,8 +180,11 @@ const viewController = {
 
         logger.audit('USER_LOGGED_IN_WEB', user._id, { username: user.username, role: user.role });
 
+        // Only redirect to a page on this site ("/path"), never to "//other-site" or "https://..."
+        const nextUrl = req.body.next;
+        const isLocalPath = typeof nextUrl === 'string' && /^\/(?![/\\])/.test(nextUrl);
         const redirectUrl = user.role === 'Editor' ? '/editor' : '/reporter';
-        return res.redirect(req.body.next || redirectUrl);
+        return res.redirect(isLocalPath ? nextUrl : redirectUrl);
       });
     } catch (error) {
       next(error);
@@ -212,7 +215,7 @@ const viewController = {
   async renderReporterDashboard(req, res, next) {
     try {
       const authorId = req.session.user.id;
-      const articles = await Article.find({ authorId }).sort({ updatedAt: -1 });
+      const articles = await Article.find({ authorId }).sort({ updatedAt: -1, _id: -1 });
 
       return res.render('reporter/dashboard', {
         articles,
@@ -277,7 +280,7 @@ const viewController = {
       if (titleFilter) query.$or = titleFilter;
 
       const [articles, allCount, draftCount, pendingCount, pubCount, retCount] = await Promise.all([
-        Article.find(query).sort({ updatedAt: -1 }).limit(50).populate('authorId'),
+        Article.find(query).sort({ updatedAt: -1, _id: -1 }).limit(50).populate('authorId'),
         Article.countDocuments({}),
         Article.countDocuments({ status: 'Draft' }),
         Article.countDocuments({ status: 'Pending' }),
