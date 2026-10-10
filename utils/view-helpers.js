@@ -20,7 +20,7 @@ function plain(doc) {
 function authorNameOf(article) {
   if (article.authorName) return article.authorName;
   const author = article.author || article.authorId;
-  return author && typeof author === 'object' && author.username ? author.username : '';
+  return author && typeof author === 'object' ? (author.fullName || author.username || '') : '';
 }
 
 function articleView(raw) {
