@@ -230,7 +230,8 @@
   function viewsPerHour(from, to) {
     if (!state.points.length) return null;
     const first = state.points[0].x;
-    const last = state.points[state.points.length - 1].x + HOUR;
+    // The current hour has only partly happened, so it counts only up to now
+    const last = Math.min(state.points[state.points.length - 1].x + HOUR, Date.now());
     const start = Math.max(from, first);
     const end = Math.min(to, last);
     if (end <= start) return null;
@@ -239,8 +240,11 @@
   }
 
   function impactOf(update) {
-    const before = viewsPerHour(update - IMPACT_WINDOW_HOURS * HOUR, update);
-    const after = viewsPerHour(update, update + IMPACT_WINDOW_HOURS * HOUR);
+    // Views are counted per hour, so split at the hour boundary nearest the update:
+    // an update at 13:10 puts the 13:00 hour after it, one at 13:50 puts it before.
+    const split = Math.round(update / HOUR) * HOUR;
+    const before = viewsPerHour(split - IMPACT_WINDOW_HOURS * HOUR, split);
+    const after = viewsPerHour(split, split + IMPACT_WINDOW_HOURS * HOUR);
     const change = before ? Math.round((after - before) / before * 100) : null;
     return { before: before, after: after, change: change };
   }
@@ -446,7 +450,8 @@
           x: {
             type: 'linear',
             min: points[0].x,
-            max: points[points.length - 1].x,
+            // Reach the latest update too, so an update approved this hour still gets its marker
+            max: Math.max(points[points.length - 1].x, state.updates.length ? state.updates[state.updates.length - 1] : 0),
             grid: { color: rule, drawTicks: false },
             border: { color: rule },
             // Our own ticks on whole local hours, evenly spaced (a linear scale would pick odd values).
