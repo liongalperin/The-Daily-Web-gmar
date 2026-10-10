@@ -8,6 +8,9 @@ const { connectDB, disconnectDB } = require('../config/db');
 const createApp = require('../app');
 const { Article, User } = require('../models');
 
+// EJS escapes text in <%= %>, so a title with ' or " appears as &#39; / &#34; in the HTML
+const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
+
 async function verifyLiveSystem() {
   console.log('\n======================================================');
   console.log('🌐 RUNNING END-TO-END LIVE SYSTEM VERIFICATION');
@@ -58,7 +61,7 @@ async function verifyLiveSystem() {
     console.log(`4. Testing Full Article SSR Page (GET /articles/${sampleArticle._id})...`);
     const artRes = await request(app).get(`/articles/${sampleArticle._id}`);
     if (artRes.status !== 200) throw new Error(`Article page failed with status ${artRes.status}`);
-    if (!artRes.text.includes(sampleArticle.title)) throw new Error('Article title not in SSR HTML');
+    if (!artRes.text.includes(escapeHtml(sampleArticle.title))) throw new Error('Article title not in SSR HTML');
     console.log('   ✅ Article SSR rendered full title and content in initial HTML for SEO');
 
     // ------------------------------------------------------------------
