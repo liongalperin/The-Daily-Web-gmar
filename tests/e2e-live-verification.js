@@ -4,7 +4,9 @@
  */
 
 const request = require('supertest');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const { connectDB, disconnectDB } = require('../config/db');
+const seedDatabase = require('../scripts/seed');
 const createApp = require('../app');
 const { Article, User } = require('../models');
 
@@ -12,13 +14,17 @@ const { Article, User } = require('../models');
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
 
 async function verifyLiveSystem() {
+  let mongod;
   console.log('\n======================================================');
   console.log('🌐 RUNNING END-TO-END LIVE SYSTEM VERIFICATION');
   console.log('======================================================\n');
 
   try {
-    // 1. Connect and initialize DB (with auto-seed fallback)
-    await connectDB();
+    // 1. Own in-memory database with the demo data, like the other suites, so the test
+    //    never writes into a real MongoDB that happens to be running (e.g. the demo database)
+    mongod = await MongoMemoryServer.create();
+    await connectDB(mongod.getUri());
+    await seedDatabase();
     const app = createApp();
 
     // ------------------------------------------------------------------
@@ -195,6 +201,7 @@ async function verifyLiveSystem() {
     process.exitCode = 1;
   } finally {
     await disconnectDB();
+    if (mongod) await mongod.stop();
     process.exit(process.exitCode || 0);
   }
 }
