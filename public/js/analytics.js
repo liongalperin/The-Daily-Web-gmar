@@ -245,7 +245,8 @@
     const split = Math.round(update / HOUR) * HOUR;
     const before = viewsPerHour(split - IMPACT_WINDOW_HOURS * HOUR, split);
     const after = viewsPerHour(split, split + IMPACT_WINDOW_HOURS * HOUR);
-    const change = before ? Math.round((after - before) / before * 100) : null;
+    // No hours after the update yet means "not known yet" (–), not 0 views (−100%)
+    const change = before && after !== null ? Math.round((after - before) / before * 100) : null;
     return { before: before, after: after, change: change };
   }
 
