@@ -1,7 +1,5 @@
 /**
- * Operational, error, and audit logger.
- * Resilient against circular structures, disk errors, and high concurrency.
- * Satisfies requirement: "יש לשמור לוגים של שגיאות ואירועים תפעוליים משמעותיים"
+ * Logger: writes app, error and audit (security) events to files in logs/.
  */
 
 const fs = require('fs');

@@ -14,6 +14,6 @@ router.get('/:id', articleController.getArticleById);
 // Reporter Draft Creation & Auto-Save
 router.post('/', requireAuth, requireRole('Reporter'), articleController.createDraft);
 router.put('/:id/auto-save', requireAuth, checkArticleOwnership, articleController.autoSaveDraft);
-router.patch('/:id/status', requireAuth, checkArticleOwnership, articleController.updateReporterStatus);
+router.patch('/:id/status', requireAuth, requireRole('Reporter'), checkArticleOwnership, articleController.updateReporterStatus);
 
 module.exports = router;

@@ -20,7 +20,7 @@ async function startServer() {
     // 3. Start listening
     const server = app.listen(PORT, () => {
       logger.info(`====================================================`);
-      logger.info(`🚀 The Daily Web Server running on http://localhost:${PORT}`);
+      logger.info(`The Daily Web server running on http://localhost:${PORT}`);
       logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`====================================================`);
     });

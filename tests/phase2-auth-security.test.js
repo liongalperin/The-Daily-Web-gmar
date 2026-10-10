@@ -56,9 +56,17 @@ async function runPhase2Tests() {
     if (unauthEditorRes.status !== 403) throw new Error(`Expected 403 for unauthorized editor registration, got ${unauthEditorRes.status}`);
     console.log('✅ Privilege Escalation Blocked: Public client cannot register Editor account (403)');
 
-    // Legitimate Reporter registration
+    // Guests can't create staff accounts at all, not even a Reporter
+    const unauthReporterRes = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'guest_reporter', password: 'password123', role: 'Reporter' });
+    if (unauthReporterRes.status !== 403) throw new Error(`Expected 403 for public reporter registration, got ${unauthReporterRes.status}`);
+    console.log('✅ Public client cannot register a Reporter account (403)');
+
+    // Reporter registration with the setup key
     const regRes = await request(app)
       .post('/api/auth/register')
+      .set('X-Admin-Key', process.env.ADMIN_SETUP_KEY)
       .send({
         username: 'reporter1',
         password: 'password123',
@@ -71,6 +79,7 @@ async function runPhase2Tests() {
     // Register second Reporter
     const rep2Res = await request(app)
       .post('/api/auth/register')
+      .set('X-Admin-Key', process.env.ADMIN_SETUP_KEY)
       .send({
         username: 'reporter2',
         password: 'password123',

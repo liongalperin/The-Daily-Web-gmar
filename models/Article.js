@@ -1,7 +1,7 @@
 /**
  * Article Model
  * Supports dual versioning (publicVersion vs draftVersion),
- * strict state machine transitions, publish history, and performance indexes.
+ * the status state machine, publish history, and indexes for the feed.
  */
 
 const mongoose = require('mongoose');
@@ -79,6 +79,12 @@ const articleSchema = new mongoose.Schema(
       updatedAt: {
         type: Date,
         default: Date.now
+      },
+      // Who saved the draft last; an editor may publish their own edits to a live article directly
+      editedByRole: {
+        type: String,
+        enum: ['Reporter', 'Editor'],
+        default: 'Reporter'
       }
     },
     editorNote: {
@@ -106,7 +112,7 @@ const articleSchema = new mongoose.Schema(
   }
 );
 
-// Virtual alias: article.views === article.totalViews (for Dev 2 compatibility)
+// article.views is another name for article.totalViews, used by the views
 articleSchema.virtual('views').get(function () {
   return this.totalViews;
 });
@@ -119,23 +125,26 @@ articleSchema.virtual('commentsCount', {
   count: true
 });
 
-// High performance indexes matching exact query patterns
-articleSchema.index({ 'publicVersion.publishedAt': -1 });
-articleSchema.index({ category: 1, 'publicVersion.publishedAt': -1 });
-articleSchema.index({ totalViews: -1, 'publicVersion.publishedAt': -1 });
-articleSchema.index({ category: 1, totalViews: -1, 'publicVersion.publishedAt': -1 });
+// Indexes matching the feed's filters and sorts. Every sort ends with _id, so articles with the
+// same date or view count keep a fixed order and paging never repeats or skips one.
+articleSchema.index({ 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ category: 1, 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ category: 1, totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 });
 
-// Indexes for Staff Dashboards (Reporter & Editor)
-articleSchema.index({ status: 1, updatedAt: -1 });
-articleSchema.index({ authorId: 1, status: 1, updatedAt: -1 });
-articleSchema.index({ authorId: 1, updatedAt: -1 });
+// Indexes for the reporter and editor desks
+articleSchema.index({ updatedAt: -1, _id: -1 });
+articleSchema.index({ status: 1, updatedAt: -1, _id: -1 });
+articleSchema.index({ authorId: 1, status: 1, updatedAt: -1, _id: -1 });
+articleSchema.index({ authorId: 1, updatedAt: -1, _id: -1 });
 
 // Fields that make up a version; a draft differs from the public version if any of them differ
 const VERSION_FIELDS = ['title', 'summary', 'content', 'imageUrl', 'category'];
 
 // State Machine Transition Rules
 // Published -> Pending (reporter) and Published -> Published (editor's own edits) also need
-// draft changes; the controllers check that with hasDraftChanges().
+// draft changes; the controllers check that with hasDraftChanges(), and for Published -> Published
+// that the changes aren't a reporter's unsubmitted work (hasUnsubmittedReporterChanges()).
 articleSchema.statics.canTransition = function (currentStatus, targetStatus, role) {
   if (role === 'Reporter') {
     if (currentStatus === 'Draft' && targetStatus === 'Pending') return true;
@@ -163,6 +172,13 @@ articleSchema.statics.hasDraftChanges = function (article) {
   const pub = article.publicVersion || {};
   if (!pub.publishedAt) return true;
   return VERSION_FIELDS.some((field) => (draft[field] || '') !== (pub[field] || ''));
+};
+
+// A live article whose unpublished changes were made by the reporter and not submitted yet.
+// Those changes reach readers only through Pending -> Published.
+articleSchema.statics.hasUnsubmittedReporterChanges = function (article) {
+  return article.status === 'Published' && this.hasDraftChanges(article) &&
+    (article.draftVersion?.editedByRole || 'Reporter') !== 'Editor';
 };
 
 // Image URLs: empty, a full http(s) link, or a path on this site ("/images/..."), never "//host" or "javascript:"
@@ -215,7 +231,7 @@ articleSchema.statics.toFeedItems = async function (rawArticles, viewedIds = [])
   });
 };
 
-// Full CRUD Static Helpers for academic rubric requirement
+// CRUD helpers
 articleSchema.statics.createArticle = function (data) {
   const summaryText = data.summary || data.snippet || (data.content ? data.content.slice(0, 150) + '...' : '');
   const category = data.category || 'news';
@@ -277,8 +293,8 @@ articleSchema.statics.searchPublishedArticles = function ({
   }
 
   const sortOption = sort === 'popular' || sort === 'popularity'
-    ? { totalViews: -1, 'publicVersion.publishedAt': -1 }
-    : { 'publicVersion.publishedAt': -1 };
+    ? { totalViews: -1, 'publicVersion.publishedAt': -1, _id: -1 }
+    : { 'publicVersion.publishedAt': -1, _id: -1 };
 
   const skip = (Math.max(1, page) - 1) * limit;
 
@@ -291,7 +307,7 @@ articleSchema.statics.searchPublishedArticles = function ({
     .lean();
 };
 
-articleSchema.statics.updateDraft = async function (id, draftData) {
+articleSchema.statics.updateDraft = async function (id, draftData, editedByRole = 'Reporter') {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
 
   const summaryText = draftData.summary || draftData.snippet || (draftData.content ? draftData.content.slice(0, 150) + '...' : '');
@@ -302,7 +318,8 @@ articleSchema.statics.updateDraft = async function (id, draftData) {
       'draftVersion.snippet': summaryText,
       'draftVersion.summary': summaryText,
       'draftVersion.imageUrl': draftData.imageUrl,
-      'draftVersion.updatedAt': new Date()
+      'draftVersion.updatedAt': new Date(),
+      'draftVersion.editedByRole': editedByRole
     }
   };
 
@@ -369,7 +386,7 @@ articleSchema.statics.getArticlesByReporter = function (authorId, { page = 1, li
   const query = { authorId };
   if (status) query.status = status;
   const skip = (Math.max(1, page) - 1) * limit;
-  return this.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
+  return this.find(query).sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
 };
 
 // Staff search: title of the draft or of the public version, case-insensitive
@@ -389,7 +406,7 @@ articleSchema.statics.getArticlesForEditor = function ({ page = 1, limit = 50, s
   const titleFilter = this.staffTitleFilter(search);
   if (titleFilter) query.$or = titleFilter;
   const skip = (Math.max(1, page) - 1) * limit;
-  return this.find(query).populate('authorId', 'username fullName').sort({ updatedAt: -1 }).skip(skip).limit(limit).lean();
+  return this.find(query).populate('authorId', 'username fullName').sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
 };
 
 articleSchema.statics.deleteArticleById = async function (id) {

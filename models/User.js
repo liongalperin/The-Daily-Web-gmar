@@ -73,7 +73,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-// Full CRUD Static Helpers for academic rubric requirement
+// CRUD helpers
 userSchema.statics.createUser = async function (userData) {
   const data = { ...userData };
   if (data.username) {

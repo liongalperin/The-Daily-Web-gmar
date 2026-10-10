@@ -14,7 +14,7 @@
 <%
   const a = articleView(article);
   const isEditor = typeof user !== 'undefined' && user && user.role === 'Editor';
-  const readOnly = !isEditor && !a.reporterCanEdit;
+  const readOnly = isEditor ? !a.editorCanEdit : !a.reporterCanEdit;
   const backUrl = isEditor ? '/editor/articles/' + a.id : '/reporter';
   const SUBMIT_LABEL = { Draft: 'reporter.submit', Returned: 'reporter.resubmit', Published: 'reporter.submitUpdate', Pending: 'reporter.submit' };
   const isNew = !a.title && !a.content;
@@ -53,7 +53,7 @@
         <% if (readOnly) { %>
           <div class="alert" role="note">
             <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg>
-            <p><%= t('editor.pendingNote') %></p>
+            <p><%= isEditor ? t('editor.reporterWorkingNote') : t('editor.pendingNote') %></p>
           </div>
         <% } %>
 

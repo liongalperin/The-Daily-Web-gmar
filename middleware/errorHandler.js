@@ -1,7 +1,6 @@
 /**
- * Centralized Error Handling Middleware
- * Ensures server never crashes on invalid data, unauthorized actions, or exceptions.
- * Satisfies requirement: "פעולות שאינן מורשות או נתונים שאינם תקינים לא יגרמו לקריסת השרת"
+ * Central error handler: turns thrown errors into a JSON or HTML error response
+ * instead of crashing the server.
  */
 
 const logger = require('../config/logger');

@@ -1,6 +1,6 @@
 /**
- * The Daily Web - High-Volume Database Seed Script
- * Generates 525+ realistic news articles across categories and statuses,
+ * Demo data seed script.
+ * Generates 523 news articles across categories and statuses,
  * multiple reporters, editor, comments, and multi-update articles with rich
  * timeseries view data for the Impact Analytics graph.
  *
@@ -128,7 +128,7 @@ const SAMPLE_COMMENTS = [
 
 async function seedDatabase(customUri) {
   const uri = customUri || process.env.MONGODB_URI || 'mongodb://localhost:27017/dailyweb';
-  console.log('🌱 Connecting to MongoDB for high-volume seeding:', uri);
+  console.log('Connecting to MongoDB for seeding:', uri);
 
   let ownConnection = false;
   if (mongoose.connection.readyState !== 1) {
@@ -136,17 +136,17 @@ async function seedDatabase(customUri) {
       await mongoose.connect(uri, { serverSelectionTimeoutMS: 4000 });
       ownConnection = true;
     } catch (connErr) {
-      console.error('\n⚠️ Failed to connect to MongoDB at:', uri);
-      console.error('👉 If running locally, make sure MongoDB is running (e.g. `net start MongoDB` or `mongod`).');
-      console.error('👉 Or specify a remote/Atlas URI in .env: MONGODB_URI=mongodb+srv://...\n');
-      console.error('💡 NOTE: You can run the entire 5-phase test suite and benchmarks in-memory without installing MongoDB by running:');
+      console.error('\nFailed to connect to MongoDB at:', uri);
+      console.error('If running locally, make sure MongoDB is running (e.g. `net start MongoDB` or `mongod`).');
+      console.error('Or specify a remote/Atlas URI in .env: MONGODB_URI=mongodb+srv://...\n');
+      console.error('Note: the tests run on an in-memory database and don\'t need MongoDB:');
       console.error('   npm test\n');
       process.exit(1);
     }
   }
 
   try {
-    console.log('🧹 Cleaning previous demo data...');
+    console.log('Removing previous demo data...');
     await Promise.all([
       User.deleteMany({}),
       Article.deleteMany({}),
@@ -155,7 +155,7 @@ async function seedDatabase(customUri) {
     ]);
 
     // 1. Create Core Users
-    console.log('👥 Creating Staff Accounts (Editor & Multiple Reporters)...');
+    console.log('Creating staff accounts...');
     const editor = await User.createUser({
       username: 'editor',
       password: 'password123',
@@ -196,10 +196,10 @@ async function seedDatabase(customUri) {
       })
     ]);
 
-    console.log(`✅ Created 1 Editor and ${reporters.length} Reporters (password: password123)`);
+    console.log(`Created 1 Editor and ${reporters.length} Reporters (password: password123)`);
 
     // 2. Prepare Articles (Total > 520 articles)
-    console.log('📝 Generating 525 Articles across categories and statuses...');
+    console.log('Generating articles...');
 
     const now = Date.now();
     const ONE_HOUR = 3600 * 1000;
@@ -220,7 +220,7 @@ async function seedDatabase(customUri) {
       },
       {
         category: 'transport',
-        status: 'Pending', // Set to Pending so Dev 2 can test visual diff in Editor review queue!
+        status: 'Pending', // An update waiting for review, to show the published vs new comparison
         title: 'רפורמת התחבורה הציבורית: רשת קווי רכבת קלה חדשה אושרה בממשלה',
         summary: 'הממשלה אישרה תקציב עתק של 15 מיליארד ש"ח להרחבת רשת הרכבות הקלות במטרופולין גוש דן.',
         content: `הממשלה אישרה היום תקציב עתק של 15 מיליארד שקלים להרחבת רשת הרכבות הקלות במרכז.`
@@ -323,6 +323,8 @@ async function seedDatabase(customUri) {
       const title = `${headline} (${i + 1})`;
       const summary = `${headline} - דיווח בלעדי מאת כתב The Daily Web על ההתפתחויות המרכזיות.`;
       const content = `${headline}\n\nבמסגרת המעקב השוטף של מערכת החדשות אחר הנושא, מדווח כי גורמים בכירים מעורבים בקידום היוזמה. הציבור מוזמן להתעדכן בעמוד זה.`;
+      // Same image in both versions, so the draft matches what readers see (no pending changes)
+      const imageUrl = rand(SAMPLE_IMAGES);
 
       const articleId = new mongoose.Types.ObjectId();
 
@@ -354,7 +356,7 @@ async function seedDatabase(customUri) {
           summary,
           snippet: summary,
           content,
-          imageUrl: rand(SAMPLE_IMAGES),
+          imageUrl,
           category: cat,
           publishedAt: pubDate
         },
@@ -363,7 +365,7 @@ async function seedDatabase(customUri) {
           summary,
           snippet: summary,
           content,
-          imageUrl: rand(SAMPLE_IMAGES),
+          imageUrl,
           category: cat,
           updatedAt: pubDate
         },
@@ -483,15 +485,15 @@ async function seedDatabase(customUri) {
 
     console.log(`Saving ${articlesToInsert.length} articles to MongoDB via bulk insert...`);
     const savedArticles = await Article.insertMany(articlesToInsert);
-    console.log(`✅ Successfully seeded ${savedArticles.length} articles!`);
+    console.log(`Seeded ${savedArticles.length} articles`);
 
     // 3. Insert Pre-Calculated ViewStats in single bulk operation
     console.log(`Saving ${viewStatsToInsert.length} ViewStats records via bulk insert...`);
     await ViewStats.insertMany(viewStatsToInsert);
-    console.log(`✅ Seeded ViewStats records for ${viewStatsToInsert.length} articles!`);
+    console.log(`Seeded view data for ${viewStatsToInsert.length} articles`);
 
     // 4. Generate Comments
-    console.log('💬 Seeding realistic user comments...');
+    console.log('Seeding comments...');
     const commentsToInsert = [];
     const sampleIps = ['203.0.113.195', '198.51.100.44', '192.0.2.89', '82.166.12.4', '109.64.33.12'];
     const sampleAuthors = ['יוסי לוי', 'מיכל כהן', 'אלון שחר', 'רונית גולן', 'דן פרידמן', 'אורית לביא'];
@@ -510,10 +512,10 @@ async function seedDatabase(customUri) {
     }
 
     await Comment.insertMany(commentsToInsert);
-    console.log(`✅ Seeded ${commentsToInsert.length} comments across articles!`);
+    console.log(`Seeded ${commentsToInsert.length} comments`);
 
     console.log('\n======================================================');
-    console.log('🎉 SEEDING COMPLETED SUCCESSFULLY!');
+    console.log('Seeding complete');
     console.log(`   Total Articles: ${savedArticles.length}`);
     console.log(`     - Published:  ${savedArticles.filter(a => a.status === 'Published').length}`);
     console.log(`     - Pending:    ${savedArticles.filter(a => a.status === 'Pending').length}`);
@@ -528,7 +530,7 @@ async function seedDatabase(customUri) {
       await mongoose.disconnect();
     }
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error('Seeding failed:', error);
     if (ownConnection && mongoose.connection.readyState !== 0) {
       await mongoose.disconnect();
     }

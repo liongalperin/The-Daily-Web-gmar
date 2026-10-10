@@ -3,7 +3,7 @@
   and nothing here depends on JavaScript. article.js only enhances the comment form (Ajax).
 
   Locals (from the article route):
-    article   - { _id, category, views, authorName | author: { username },
+    article   - { _id, category, views, authorName | author: { fullName, username },
                   publicVersion: { title, summary, content, imageUrl, publishedAt } }
                 Only publicVersion is rendered, so a pending edit never reaches readers.
     comments  - [{ _id, authorName, content, createdAt }], newest first
@@ -13,7 +13,8 @@
   const pub = article.publicVersion || article;
   // Only full http(s) links or paths on this site reach the page; anything else (e.g. "javascript:") shows no image.
   const imageUrl = /^(https?:\/\/|\/(?!\/))/i.test(pub.imageUrl || '') ? pub.imageUrl : '';
-  const authorName = article.authorName || (article.author && article.author.username) || (article.authorId && article.authorId.username) || '';
+  const author = article.author || article.authorId || {};
+  const authorName = article.authorName || author.fullName || author.username || '';
   const paragraphs = String(pub.content || '').split(/\r?\n+/).map(function (p) { return p.trim(); }).filter(Boolean);
   const commentList = typeof comments !== 'undefined' ? comments : [];
   const pageUrl = typeof canonical !== 'undefined' ? canonical : '';

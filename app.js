@@ -80,13 +80,13 @@ function createApp(customSessionStore = null) {
     })
   );
 
-  // Internationalization & View Helpers (for Dev 2 EJS views)
+  // Hebrew/English strings and helpers for the EJS views
   const i18n = require('./utils/i18n');
   const viewHelpers = require('./utils/view-helpers');
   app.use(i18n);
   app.use(viewHelpers);
 
-  // Global Template Variables (for Developer 2's EJS views)
+  // Logged-in user, available to every view
   app.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.currentUser = req.session?.user || null;

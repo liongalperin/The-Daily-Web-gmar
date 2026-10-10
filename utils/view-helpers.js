@@ -20,7 +20,7 @@ function plain(doc) {
 function authorNameOf(article) {
   if (article.authorName) return article.authorName;
   const author = article.author || article.authorId;
-  return author && typeof author === 'object' && author.username ? author.username : '';
+  return author && typeof author === 'object' ? (author.fullName || author.username || '') : '';
 }
 
 function articleView(raw) {
@@ -37,6 +37,8 @@ function articleView(raw) {
   const pick = (field) => (draft[field] !== undefined && draft[field] !== null ? draft[field] : (pub[field] || article[field] || ''));
 
   const status = STATUSES.includes(article.status) ? article.status : 'Draft';
+  // A reporter's unsubmitted update to a live article: the editor can't publish or edit it yet
+  const reporterUpdateInProgress = status === 'Published' && hasDraftChanges && draft.editedByRole !== 'Editor';
   const content = String(pick('content'));
 
   return {
@@ -68,8 +70,9 @@ function articleView(raw) {
     reporterCanEdit: status !== 'Pending',
     reporterCanSubmit: status === 'Draft' || status === 'Returned' || (status === 'Published' && hasDraftChanges),
     editorCanDecide: status === 'Pending',
+    editorCanEdit: !reporterUpdateInProgress,
     // Approve also publishes the editor's own edits to a live article
-    editorCanPublish: status === 'Pending' || (status === 'Published' && hasDraftChanges)
+    editorCanPublish: status === 'Pending' || (status === 'Published' && hasDraftChanges && !reporterUpdateInProgress)
   };
 }
 
