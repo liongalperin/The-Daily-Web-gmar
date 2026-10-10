@@ -81,7 +81,7 @@ commentSchema.statics.checkRateLimit = async function ({ ipAddress, deviceId, wi
   };
 };
 
-// Full CRUD Static Helpers for academic rubric requirement
+// CRUD helpers
 commentSchema.statics.createComment = function (data) {
   return this.create(data);
 };

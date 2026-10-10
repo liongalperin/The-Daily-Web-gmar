@@ -1,6 +1,6 @@
 /**
  * Central API Router Index
- * Mounts all REST endpoints strictly complying with docs/api-contract.md
+ * Mounts the REST endpoints described in docs/api-contract.md
  */
 
 const express = require('express');

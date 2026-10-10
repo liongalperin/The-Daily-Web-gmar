@@ -25,12 +25,12 @@ router.post('/login', viewController.handleLogin);
 router.post('/logout', viewController.handleLogout);
 router.get('/logout', viewController.handleLogout);
 
-// Reporter Dashboard & Edit (Dev 2 UI)
+// Reporter dashboard and article editor
 router.get('/reporter', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterDashboard);
 router.get('/reporter/dashboard', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterDashboard);
 router.get('/reporter/articles/:id/edit', requireAuth, requireRole('Reporter', 'Editor'), noCache, viewController.renderReporterEdit);
 
-// Editor Dashboard, Review & Analytics (Dev 2 UI)
+// Editor dashboard, review and analytics
 router.get('/editor', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorDashboard);
 router.get('/editor/dashboard', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorDashboard);
 router.get('/editor/articles/:id', requireAuth, requireRole('Editor'), noCache, viewController.renderEditorReview);

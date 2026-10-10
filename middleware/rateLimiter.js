@@ -1,12 +1,12 @@
 /**
- * Rate Limiter Middleware for Comments
- * Requirement: "אורח יכול לפרסם לכל היותר 3 תגובות בדקה מאותו מכשיר. ניסיון לעבור את המגבלה ייחסם על ידי השרת ויחזיר הודעה מתאימה למשתמש"
+ * Comment rate limiter: at most 3 comments per minute from the same device.
+ * A 4th returns 429 with Retry-After and a message for the user.
  */
 
 const { Comment } = require('../models');
 const logger = require('../config/logger');
 
-// In-memory sliding window cache to eliminate TOCTOU concurrency race conditions
+// Recent comment times per device, kept in memory so simultaneous requests are counted together
 const inMemoryRequestLog = new Map();
 
 function getClientIp(req) {
@@ -35,11 +35,11 @@ async function commentRateLimiter(req, res, next) {
   const ipAddress = getClientIp(req);
   const deviceId = getDeviceId(req);
 
-  // Key by device ID if available (academic rubric requirement: "מאותו מכשיר"), otherwise by IP
+  // Identify the device by its device ID if one is sent, otherwise by IP
   const rateLimitKey = deviceId ? `dev:${deviceId}` : `ip:${ipAddress}`;
   const now = Date.now();
 
-  // 1. In-memory atomic check & synchronous slot reservation to prevent TOCTOU burst races
+  // 1. Check and reserve a slot in memory first, before any await, so a burst of requests can't all pass
   const existingTimestamps = inMemoryRequestLog.get(rateLimitKey) || [];
   const recentInMem = existingTimestamps.filter(t => now - t < 60000);
 
@@ -62,11 +62,11 @@ async function commentRateLimiter(req, res, next) {
     });
   }
 
-  // Synchronously claim slot before entering asynchronous database check
+  // Reserve the slot now, before the database check below
   recentInMem.push(now);
   inMemoryRequestLog.set(rateLimitKey, recentInMem);
 
-  // 2. Database check against historical comments
+  // 2. Also count the comments already saved in the database (covers server restarts)
   try {
     const check = await Comment.checkRateLimit({
       ipAddress,

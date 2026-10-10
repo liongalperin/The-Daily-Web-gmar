@@ -1,7 +1,7 @@
 /**
  * View Controller
- * Serves Server-Side Rendered (SSR) HTML pages via EJS.
- * Powers the bilingual newsroom UI and satisfies the strict academic SEO requirement.
+ * Renders the HTML pages with EJS. Article pages are fully rendered on the server,
+ * so search engines get the whole text without running JavaScript.
  */
 
 const mongoose = require('mongoose');
@@ -56,7 +56,7 @@ const viewController = {
   },
 
   /**
-   * Article Full Page (Strict SEO SSR - full content in initial HTML)
+   * Article page (full content in the initial HTML)
    * GET /articles/:id
    */
   async renderArticle(req, res, next) {
@@ -206,7 +206,7 @@ const viewController = {
   },
 
   /**
-   * Reporter Dashboard (Dev 2 UI)
+   * Reporter dashboard
    * GET /reporter
    */
   async renderReporterDashboard(req, res, next) {
@@ -224,7 +224,7 @@ const viewController = {
   },
 
   /**
-   * Reporter Article Editor (Dev 2 UI)
+   * Article editor (reporters, and editors editing an article)
    * GET /reporter/articles/:id/edit
    */
   async renderReporterEdit(req, res, next) {
@@ -263,7 +263,7 @@ const viewController = {
   },
 
   /**
-   * Editor Dashboard (Dev 2 UI)
+   * Editor dashboard
    * GET /editor
    */
   async renderEditorDashboard(req, res, next) {
@@ -306,7 +306,7 @@ const viewController = {
   },
 
   /**
-   * Editor Review Page (Dev 2 UI)
+   * Editor review page
    * GET /editor/articles/:id
    */
   async renderEditorReview(req, res, next) {
@@ -334,7 +334,7 @@ const viewController = {
   },
 
   /**
-   * Editor Impact Analytics Page (Dev 2 UI)
+   * Editor Impact Analytics page
    * GET /editor/analytics
    */
   async renderEditorAnalytics(req, res, next) {

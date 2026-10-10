@@ -50,7 +50,7 @@ viewStatsSchema.statics.getHourBucket = function (date = new Date()) {
   return d;
 };
 
-// Increment view count in bucket (Atomic & race-condition proof for high-traffic environments)
+// Add one view to the article's current hour, with atomic updates so simultaneous views aren't lost
 viewStatsSchema.statics.recordView = async function (articleId, viewDate = new Date()) {
   if (!mongoose.Types.ObjectId.isValid(articleId)) return null;
 
@@ -104,7 +104,7 @@ viewStatsSchema.statics.recordView = async function (articleId, viewDate = new D
   return updated;
 };
 
-// Impact Analytics Formatter for Developer 2's Chart.js dashboard
+// Data for the Impact Analytics chart: hourly views plus the times updates were published
 viewStatsSchema.statics.getImpactAnalytics = async function (articleId) {
   if (!mongoose.Types.ObjectId.isValid(articleId)) {
     return { viewData: [], updatePoints: [] };
@@ -134,7 +134,7 @@ viewStatsSchema.statics.getImpactAnalytics = async function (articleId) {
   };
 };
 
-// Full CRUD Static Helpers for academic rubric requirement
+// CRUD helpers
 viewStatsSchema.statics.createStats = function (articleId, initialViews = []) {
   const total = initialViews.reduce((acc, curr) => acc + (curr.count || 0), 0);
   return this.create({

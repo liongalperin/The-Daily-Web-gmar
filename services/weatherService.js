@@ -1,10 +1,7 @@
 /**
  * Weather Service
- * External API integration for sidebar weather widget.
- * Requirements:
- * - Free web service (no credit card).
- * - Weather data can lag up to 15 minutes max (cached to support thousands of concurrent users).
- * - Never crash the server if external service is down.
+ * Weather for the sidebar widget, from Open-Meteo (free, no API key).
+ * If Open-Meteo fails, the last reading is served.
  *
  * Contract (docs/api-contract.md, GET /api/weather?city=):
  *   { city, temperature, humidity, wind, code, fetchedAt }

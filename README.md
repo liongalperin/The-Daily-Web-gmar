@@ -1,234 +1,260 @@
 # The Daily Web (המהדורה הדיגיטלית) - News Management System
 
 [![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green.svg)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com/)
+[![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-brightgreen.svg)](https://mongoosejs.com/)
-[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing-success.svg)](#-automated-test-verification)
+[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing-success.svg)](#-automated-tests)
 
-A modern, responsive, high-performance web application for managing, editing, and publishing news articles. Built specifically to fulfill Israeli university Web Development course requirements with strict adherence to **MVC Architecture**, semantic HTML5, pure CSS Flexbox (zero CSS Grid / zero Bootstrap / zero React), and Hebrew RTL support.
+A responsive web application for writing, editing, approving and publishing news articles. Built for the Web Application Development course final project with **MVC architecture**, Node.js + Express, MongoDB + Mongoose, EJS server-side rendering, vanilla JavaScript Ajax, semantic HTML5 and Flexbox-only CSS. The interface is Hebrew (RTL) by default, with an English (LTR) toggle in the header.
 
 ---
 
-## 🔑 Demo Credentials Table
+## 🔑 Demo Accounts
 
-All pre-seeded staff accounts share the default password `password123`. These are demo accounts created by `npm run seed` on your local database only; they aren't credentials to any real system.
+`npm run seed` creates these accounts in your local database. All of them use the password `password123`. They are demo accounts only and aren't credentials to any real system.
 
-| Role | Username | Password | Desk URL | Capabilities |
+| Role | Username | Password | After login | What they can do |
 | :--- | :--- | :--- | :--- | :--- |
-| **Editor (עורך ראשי)** | `editor` | `password123` | [`/editor/desk`](http://localhost:3000/editor/desk) | Review pending drafts, side-by-side diff inspection, publish/return with editorial feedback notes, Chart.js Impact Analytics with update markers. |
-| **Reporter 1 (כתב טכנולוגיה)** | `reporter1` | `password123` | [`/reporter/desk`](http://localhost:3000/reporter/desk) | Create new drafts, background auto-save, submit for review, view editor notes on returned articles. |
-| **Reporter 2 (כתבת כלכלה)** | `reporter2` | `password123` | [`/reporter/desk`](http://localhost:3000/reporter/desk) | Dedicated reporter workspace for economic news. |
-| **Reporter 3 (כתב פוליטי)** | `reporter3` | `password123` | [`/reporter/desk`](http://localhost:3000/reporter/desk) | Dedicated reporter workspace for political reporting. |
-| **Reporter 4 (כתבת תרבות)** | `reporter4` | `password123` | [`/reporter/desk`](http://localhost:3000/reporter/desk) | Dedicated reporter workspace for culture & entertainment. |
-| **Reporter 5 (כתב ספורט)** | `reporter5` | `password123` | [`/reporter/desk`](http://localhost:3000/reporter/desk) | Dedicated reporter workspace for sports coverage. |
-| **Guest / Public (קורא אורח)** | *No login needed* | *N/A* | [`/`](http://localhost:3000/) | Infinite-scroll news feed (20/page), Hebrew live search, SSR SEO article pages, post comments (rate limited: 3 comments / min per IP/device). |
+| **Editor (עורך)** | `editor` | `password123` | [`/editor`](http://localhost:3000/editor) | See and filter all articles, review pending articles with a side-by-side diff, edit them, approve and publish, return with a note, delete, Impact Analytics chart. |
+| **Reporter (כתב)** | `reporter1` … `reporter5` | `password123` | [`/reporter`](http://localhost:3000/reporter) | Create articles, auto-saving editor, submit for approval, see the editor's note on returned articles, resubmit, edit published articles. |
+| **Guest (אורח)** | *no login* | – | [`/`](http://localhost:3000/) | News feed with infinite scroll, search, filters and sorting, full article pages, comments (max 3 per minute per device). |
+
+Editor accounts aren't created through the UI. The seeded `editor` account covers all Editor features. If another Editor is needed, a logged-in Editor can call `POST /api/auth/register` with `"role": "Editor"`.
 
 ---
 
-## 🏗️ Architecture & Strict Constraints
+## 🚀 Installation and Running
 
-The system adheres strictly to the academic syllabus boundaries:
-* **MVC Pattern:** Models encapsulate schemas & DB operations, Controllers handle HTTP logic, Views render semantic EJS templates.
-* **Database (MongoDB + Mongoose):** 4 core models (`User`, `Article`, `Comment`, `ViewStats`), each supporting full CRUD operations.
-* **Session Persistence:** Persistent login across server restarts using `express-session` with `connect-mongo`.
-* **State Machine & Dual Versioning:**
-  * Status lifecycle: `Draft` ➔ `Pending` ➔ `Published` ➔ `Returned`.
-  * Dual versioning: When a reporter edits a published article, updates are stored in `draftVersion` while the public continues viewing `publicVersion` until an Editor explicitly approves the update.
-  * Concurrency safety: Auto-save is locked (`409 Conflict`) while an article is undergoing `Pending` editorial review.
-* **Rate Limiting & Spam Protection:** Sliding-window rate limiter enforcing max 3 comments/minute per IP/device with HTTP `429 Too Many Requests` and standard `Retry-After: 60` headers. Concurrency bursts are blocked via synchronous in-memory reservations.
-* **Impact Analytics:** Hourly-bucketed view statistics with timestamps of editorial update approvals for Chart.js rendering.
-* **Strict Frontend Constraints:**
-  * Pure CSS Flexbox only (**NO CSS Grid**, **NO Bootstrap**, **NO Tailwind**, **NO React/Vue/Angular**).
-  * Vanilla JavaScript Ajax (no jQuery, no Axios on frontend).
-  * RTL Hebrew first (`dir="rtl"`, `lang="he"`).
-  * Public article pages are Server-Side Rendered (SSR) with EJS for search engine indexing (SEO).
+### Requirements
+* **Node.js 18+**
+* **MongoDB Community Server** running locally on port `27017`. See [Why MongoDB must be running](#why-mongodb-must-be-running).
 
----
-
-## 📂 Project Directory Structure
-
-```text
-The-Daily-Web-gmar/
-├── app.js                          # Express application factory & middleware setup
-├── server.js                       # HTTP server entrypoint
-├── package.json                    # Dependencies and npm scripts
-├── .env.example                    # Optional settings; copy to .env (never committed)
-│
-├── config/
-│   ├── db.js                       # Resilient Mongoose connection & pool config
-│   └── logger.js                   # Operational, error, and security audit logger
-│
-├── models/
-│   ├── index.js                    # Model barrel export
-│   ├── User.js                     # User model (Bcrypt hashing, RBAC, full CRUD)
-│   ├── Article.js                  # Article model (Dual versioning, state machine, full CRUD)
-│   ├── Comment.js                  # Comment model (Sliding-window rate check, full CRUD)
-│   └── ViewStats.js                # ViewStats model (Bucketed time series, Chart.js formatter)
-│
-├── controllers/
-│   ├── authController.js           # Login, logout, registration, session me
-│   ├── articleController.js        # Feed, search, auto-save, status transitions
-│   ├── commentController.js        # Dynamic comment creation & retrieval
-│   ├── analyticsController.js      # Telemetry for Chart.js dashboard
-│   ├── weatherController.js        # Weather endpoint (Open-Meteo with fallback)
-│   └── viewController.js          # SSR HTML page controllers (Home, Article, Desks)
-│
-├── middleware/
-│   ├── auth.js                     # requireAuth, requireRole, checkArticleOwnership
-│   ├── rateLimiter.js              # Max 3/min per IP/device sliding-window limiter
-│   └── errorHandler.js             # Centralized error handler & Mongoose formatter
-│
-├── routes/
-│   ├── views.js                    # SSR page routes (/, /articles/:id, /login, /reporter/desk, /editor/desk)
-│   └── api/
-│       ├── index.js                # API router aggregator (/api)
-│       ├── auth.js                 # /api/auth routes
-│       ├── articles.js             # /api/articles & /api/admin/articles routes
-│       ├── comments.js             # /api/comments routes
-│       ├── analytics.js            # /api/admin/analytics routes
-│       └── weather.js              # /api/weather routes
-│
-├── services/
-│   └── weatherService.js           # 15-minute cached weather service
-│
-├── scripts/
-│   └── seed.js                     # 523 articles, 6 staff users, 250 comments, 400 ViewStats
-│
-├── views/
-│   ├── layout/
-│   │   ├── header.ejs              # Shared Hebrew header & navigation
-│   │   └── footer.ejs              # Shared footer
-│   └── pages/
-│       ├── home.ejs                # SSR homepage + infinite scroll feed & live search
-│       ├── article.ejs             # SSR SEO-compliant article page + dynamic comments
-│       ├── login.ejs               # Login form with tabbed demo account switcher
-│       ├── reporter-desk.ejs       # Reporter workspace with auto-save & status submit
-│       ├── editor-desk.ejs         # Editor dashboard with diff view, status controls & Chart.js
-│       └── error.ejs               # Semantic error page (404 / 500)
-│
-├── public/
-│   ├── css/
-│   │   └── style.css               # Semantic Flexbox-only stylesheet (RTL, responsive)
-│   └── js/                         # Static assets & scripts
-│
-├── tests/
-│   ├── run-tests.js                # Unified test runner
-│   ├── phase1-models.test.js       # Phase 1: Mongoose models & CRUD test suite
-│   ├── phase2-auth-security.test.js# Phase 2: Auth, sessions, RBAC & rate limiter
-│   ├── phase3-api-endpoints.test.js# Phase 3: REST API & State Machine test suite
-│   └── phase4-seed-verification.test.js # Phase 4: High-volume seed & query performance
-│
-└── docs/
-    ├── api-contract.md             # Developer 2 API integration specification
-    ├── dev2-guide.md               # Developer 2 frontend implementation guide
-    └── roles.md                    # Work division & academic compliance matrix
+### 1. Install MongoDB and start it
+**macOS (Homebrew):**
+```bash
+brew tap mongodb/brew
+brew install mongodb-community
+brew services start mongodb-community
 ```
 
----
+**Windows:** install [MongoDB Community Server](https://www.mongodb.com/try/download/community) with "Install MongoD as a Service" checked. It then runs in the background on startup. To start it manually: `net start MongoDB`.
 
-## 🚀 Quick Start Guide
+**Linux:** follow the [MongoDB install guide](https://www.mongodb.com/docs/manual/administration/install-on-linux/), then `sudo systemctl start mongod`.
 
-### 1. Installation
-Clone the repository and install all npm dependencies:
+### 2. Install dependencies
 ```bash
 git clone <repository-url>
 cd The-Daily-Web-gmar
 npm install
 ```
 
-### 2. Configuration (optional)
-No configuration is needed to run the project locally, and no secrets are stored in the repository:
-* **Session secret:** if `SESSION_SECRET` isn't set, the server generates a random one on first start and keeps it in `.session-secret` (ignored by Git), so logins still survive a restart. Production refuses to start without `SESSION_SECRET`.
-* **Database:** uses MongoDB at `mongodb://localhost:27017/dailyweb`. If no MongoDB is running, the server starts an embedded in-memory database and fills it with the demo data automatically (its data and logins reset on every restart).
-* **Weather:** uses Open-Meteo, which needs no API key.
-
-To change a setting, copy the example file and edit it:
-```bash
-cp .env.example .env
-```
-
-### 3. Seed High-Volume Dataset (500+ Articles)
-Populate your MongoDB database with the full dataset (523 articles across 4 statuses, 6 staff accounts, comments, and hourly analytics):
+### 3. Load the demo data
 ```bash
 npm run seed
 ```
+This fills the `dailyweb` database with 523 articles in all four statuses and in every section, 6 staff accounts, comments, articles with several updates after publishing, and hourly view data for the analytics chart.
 
-### 4. Start the Application
-Run in production or development mode:
+You only need to run this once, because the data stays in MongoDB. Running it again **deletes** all users, articles, comments and view data in `dailyweb` and recreates the demo set.
+
+### 4. Start the server
 ```bash
-# Standard start:
-npm start
-
-# Development mode (with live watch):
-npm run dev
+npm start        # or: npm run dev  (restarts on file changes)
 ```
-Open your browser and navigate to: **[http://localhost:3000](http://localhost:3000)**.
+Open **[http://localhost:3000](http://localhost:3000)**.
+
+### Configuration (optional)
+No configuration is needed. To change a setting, copy `.env.example` to `.env` and edit it. `.env` is ignored by Git, and no secrets are stored in the repository.
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PORT` | `3000` | HTTP port. |
+| `MONGODB_URI` | `mongodb://localhost:27017/dailyweb` | Database. Can point to MongoDB Atlas instead (`mongodb+srv://...`). |
+| `SESSION_SECRET` | *(generated)* | Signs the session cookie. If empty, a random secret is generated on first start and saved to `.session-secret` (ignored by Git), so logins still survive restarts. Required when `NODE_ENV=production`. |
+| `ADMIN_SETUP_KEY` | *(off)* | Optional. Lets `POST /api/auth/register` create an Editor without being logged in, by sending the same value in an `X-Admin-Key` header. Choose any value yourself and restart the server after setting it. |
+
+Weather uses [Open-Meteo](https://open-meteo.com/), which needs no API key or credit card.
+
+### Why MongoDB must be running
+Sessions are stored in MongoDB (`connect-mongo`), so **a logged-in user stays logged in after the server restarts**. That only works with a real MongoDB.
+
+If no MongoDB is reachable at `localhost`, the server still starts, using a temporary in-memory database that it fills with the demo data automatically. That's convenient for a quick look, but **all data and logins are lost on every restart**. Check that MongoDB is running before demonstrating restart persistence or auto-save across sessions. The server log says `MongoDB connected successfully to localhost/dailyweb` when it's using the real database, and `Embedded MongoDB active` when it's using the temporary one.
 
 ---
 
-## 🧪 Automated Test Verification
+## ✨ Main Features
 
-A comprehensive automated test suite covers all four backend layers using an isolated in-memory MongoDB server:
+### Public site (guests)
+* **News feed** (`/`): published articles only. The first page is server-rendered, and the next 20 load automatically as you near the bottom (infinite scroll).
+* **Search, filters and sorting without page reloads:** search headlines, summaries and article text, filter by section and by read / unread (articles you've opened in this session), sort by newest or most popular.
+* **Article cards:** headline, image, summary, section, reporter and publish date.
+* **Article page** (`/articles/:id`): fully server-rendered with EJS, so the complete text is in the initial HTML for search engines. Every visit is counted in the view statistics.
+* **Comments:** a new comment appears in the list immediately via Ajax. The server allows at most **3 comments per minute per device**. A 4th returns HTTP `429` with `Retry-After`, and the page shows a message with a countdown.
+* **Weather widget** in the sidebar (Open-Meteo, cached on the server for 15 minutes so thousands of readers share one upstream request; shows the last good data if a refresh fails).
+* Hebrew / English toggle and day / night theme.
+
+### Reporter area (`/reporter`)
+* List of the reporter's own articles with their status: **בהכנה (Draft)**, **ממתינה לאישור (Pending)**, **פורסמה (Published)**, **הוחזרה לתיקונים (Returned)**.
+* Create a new article, edit drafts and returned articles, submit for approval, see the editor's note, resubmit.
+* **Auto-save:** changes are saved to the server while typing (`PUT /api/articles/:id/auto-save`), with no Save button needed. Closing the browser, refreshing or opening the article on another computer continues from the latest version. A local backup restores changes if the connection dropped before they reached the server.
+* **Editing a published article:** changes go into a separate draft version. Readers keep seeing the approved version until an editor approves the update.
+
+### Editor area (`/editor`)
+* All articles in the system, filterable by status and searchable by headline.
+* **Review page** for pending articles: shows the currently published version next to the new one with highlighted changes. The editor can approve and publish, return with a required note, edit the article directly, or delete it.
+* **Impact Analytics** (`/editor/analytics`): pick a published article to see a Chart.js line chart of views per hour, with vertical markers at each moment an editor published an update, and a before / after comparison for every update.
+
+### State machine
+`Draft → Pending` (reporter, own article) · `Pending → Published` or `Pending → Returned` with a note (editor) · `Returned → Pending` (reporter). Editing a published article and submitting it is `Published → Pending`, while readers keep seeing the approved version. Any other transition is rejected by the server. While an article is Pending, the reporter can't edit it (`409 Conflict`).
+
+### Security
+* Passwords are hashed with bcrypt and never returned by the API.
+* Roles come from the server-side session, never from data the browser can change. Every permission is checked on the server (`middleware/auth.js`): guests reach only public pages, reporters only their own articles, and only editors can publish, return or delete.
+* Sessions are stored in MongoDB and survive server restarts. The session ID is regenerated on login.
+
+### Scale, errors and logging
+* Indexes for the feed, section filter and popularity sort, so the feed stays fast with thousands of articles (benchmarked in the Phase 4 tests).
+* View statistics are stored in **hourly buckets** per article and incremented atomically, instead of one document per view. This keeps writes cheap under heavy traffic and makes the chart query small.
+* Invalid input and unauthorized requests return clear `400` / `401` / `403` / `404` / `409` responses without crashing the server. Errors are handled centrally in `middleware/errorHandler.js`.
+* Logs are written to `logs/app.log`, `logs/error.log` and `logs/audit.log` (logins, failed logins, status changes, blocked actions).
+
+---
+
+## 📂 Project Structure
+
+```text
+The-Daily-Web-gmar/
+├── server.js                 # Entry point: connects to MongoDB, starts the HTTP server
+├── app.js                    # Express app: middleware, sessions, routes, error handling
+├── package.json
+├── .env.example              # Optional settings (copy to .env)
+│
+├── config/
+│   ├── db.js                 # Mongoose connection (+ in-memory fallback for quick local runs)
+│   ├── logger.js             # App, error and audit logs in logs/
+│   └── secrets.js            # Session secret (from .env, or generated into .session-secret)
+│
+├── models/                   # M – Mongoose schemas and data operations (full CRUD each)
+│   ├── index.js
+│   ├── User.js               # Staff users, bcrypt hashing, roles
+│   ├── Article.js            # Draft/public versions, status state machine, feed queries
+│   ├── Comment.js            # Comments and per-device rate checks
+│   └── ViewStats.js          # Hourly view buckets and Impact Analytics data
+│
+├── controllers/              # C – request handling
+│   ├── viewController.js     # Server-rendered pages (feed, article, login, reporter and editor areas)
+│   ├── authController.js     # Login, logout, current user, register
+│   ├── articleController.js  # Feed, search, create, auto-save, status changes, delete
+│   ├── commentController.js  # Comments
+│   ├── analyticsController.js# Chart data
+│   └── weatherController.js  # Weather endpoint
+│
+├── routes/
+│   ├── views.js              # HTML pages: /, /articles/:id, /login, /reporter/*, /editor/*
+│   ├── auth.js               # /api/auth (login, logout, me, register)
+│   └── api/
+│       ├── index.js          # /api router; /api/reporter/articles, /api/admin/articles
+│       ├── articles.js       # /api/articles
+│       ├── comments.js       # /api/comments
+│       ├── analytics.js      # /api/admin/analytics/:articleId
+│       └── weather.js        # /api/weather
+│
+├── middleware/
+│   ├── auth.js               # requireAuth, requireRole, article ownership checks
+│   ├── rateLimiter.js        # 3 comments per minute per device
+│   └── errorHandler.js       # Central error handler
+│
+├── services/
+│   └── weatherService.js     # Open-Meteo client with 15-minute cache
+│
+├── utils/
+│   ├── i18n.js               # Hebrew/English strings, RTL/LTR, date and number formatting
+│   ├── categories.js         # Article sections
+│   └── view-helpers.js       # Helpers shared by EJS templates
+│
+├── locales/                  # he.json, en.json
+│
+├── views/                    # V – EJS templates
+│   ├── index.ejs             # Home feed
+│   ├── article.ejs           # Article page
+│   ├── login.ejs
+│   ├── error.ejs
+│   ├── reporter/             # dashboard.ejs (my articles), edit.ejs (auto-saving editor)
+│   ├── editor/               # dashboard.ejs (all articles), review.ejs, analytics.ejs
+│   ├── partials/             # head, header, footer, sidebar, article card, status badge, icons
+│   ├── pages/                # Earlier desk pages, still served at /reporter/desk and /editor/desk
+│   └── layout/               # Header/footer used by views/pages/
+│
+├── public/
+│   ├── css/style.css         # Flexbox-only, responsive, RTL/LTR
+│   ├── js/                   # main.js (feed, search, filters), article.js (comments),
+│   │                         # reporter.js (auto-save), editor-desk.js, analytics.js, weather.js
+│   ├── vendor/               # Chart.js
+│   └── images/
+│
+├── scripts/
+│   └── seed.js               # Demo data (npm run seed)
+│
+├── tests/                    # npm test – runs on an in-memory MongoDB
+│
+└── docs/                     # API contract, data schema, roles and work split
+```
+
+---
+
+## 🧪 Automated Tests
 
 ```bash
 npm test
 ```
+The tests start their own in-memory MongoDB, so they don't touch your `dailyweb` database and don't need MongoDB running.
 
-### Verified Test Suites:
-1. **`phase1-models.test.js`**:
-   * Bcrypt password hashing and `passwordHash` hidden projection security.
-   * Full CRUD on `User`, `Article`, `Comment`, and `ViewStats`.
-   * Dual versioning initial state (`draftVersion` vs `publicVersion`).
-   * Hourly bucket atomic upserts and view synchronization.
-   * Cascade cleanup on article deletion.
-2. **`phase2-auth-security.test.js`**:
-   * Privilege escalation prevention on public registration (403).
-   * Session regeneration upon login to prevent session fixation.
-   * **Persistence across server restarts** (MongoDB session store survival).
-   * Role-Based Access Control (`requireAuth`, `requireRole('Editor')`).
-   * Ownership enforcement preventing foreign draft modification (403).
-   * Concurrency burst rate limiting (3 allowed, remaining 2 instantly throttled with HTTP 429).
-3. **`phase3-api-endpoints.test.js`**:
-   * Infinite-scroll pagination (`page`, `limit=20`, `hasMore`).
-   * Hebrew full-text search with regex fallback.
-   * Background silent auto-save (`PUT /api/articles/:id/auto-save`).
-   * State machine transitions (`Draft` ➔ `Pending` ➔ `Returned` / `Published`).
-   * Concurrency lock (409 Conflict during editorial review).
-   * Comment rate limit headers (`Retry-After: 60`).
-   * Weather widget endpoint with in-memory 15-minute caching.
-4. **`phase4-seed-verification.test.js`**:
-   * High-volume generation of 523 articles (398 Published, 50 Pending, 45 Draft, 30 Returned).
-   * Query latency benchmarks at scale (<10ms for feed pagination, <30ms for Hebrew search).
-   * Flagship multi-update articles with 73 hourly buckets for Chart.js impact curves.
+1. **`phase1-models.test.js`**: password hashing, full CRUD on all four models, draft/public versions, atomic view buckets, cleanup when an article is deleted.
+2. **`phase2-auth-security.test.js`**: blocked privilege escalation on registration, session regeneration on login, sessions surviving a server restart, role and ownership checks, comment rate limit under concurrent requests.
+3. **`phase3-api-endpoints.test.js`**: feed pagination, Hebrew search, auto-save, state machine transitions, `409` lock while pending, `Retry-After` header, weather caching.
+4. **`phase4-seed-verification.test.js`**: full demo data set and query speed with 500+ articles.
+5. **`phase5-views-integration.test.js`**: server-rendered pages, SEO content in the initial HTML, role redirects, error pages.
+6. **`e2e-live-verification.js`**: guest, reporter and editor flows end to end.
 
 ---
 
-## 📊 Evaluation Walkthrough for Course Graders
+## 📊 Walkthrough for Graders
 
-### 1. Public Portal & SSR SEO
-1. Open [`http://localhost:3000`](http://localhost:3000).
-2. Inspect page source: all initial articles are Server-Side Rendered in Hebrew (`dir="rtl"`).
-3. Scroll down or select a category tag to trigger infinite scroll via Ajax.
-4. Search for keywords like **"מחשב"** or **"רכבת"** to test live search.
-5. Click on an article card to view its SSR page ([`http://localhost:3000/articles/<id>`](http://localhost:3000/articles/<id>)).
-6. Add a comment. Submit 4 comments rapidly from the same browser to verify the HTTP 429 spam block banner.
+Before starting, make sure MongoDB is running and `npm run seed` has been run (see [Installation and Running](#-installation-and-running)).
 
-### 2. Reporter Workspace & Silent Auto-Save
-1. Log in at [`http://localhost:3000/login`](http://localhost:3000/login) using `reporter1` / `password123`.
-2. You will be redirected to [`/reporter/desk`](http://localhost:3000/reporter/desk).
-3. Click **"צור כתבה חדשה"** (Create New Article) or edit an existing draft.
-4. Type in the title and content fields — notice the indicator **"נשמר אוטומטית ברקע"** updating silently via Ajax without page refreshes.
-5. Click **"הגש לסקירת עורך"** (Submit for Review) to transition status to `Pending`.
+### 1. Public site
+1. Open [http://localhost:3000](http://localhost:3000). View the page source: the first articles are already in the HTML.
+2. Scroll down: 20 more articles load each time. Search for **"מחשב"** or **"רכבת"**, change the section, the read / unread filter and the sort order. None of this reloads the page.
+3. Open an article. Its full text is in the page source.
+4. Post comments: each appears immediately. The 4th within a minute is blocked with a message.
+5. Check the weather widget in the sidebar.
 
-### 3. Editor Dashboard & Impact Analytics
-1. Log out and log in as `editor` / `password123`.
-2. Navigate to [`http://localhost:3000/editor/desk`](http://localhost:3000/editor/desk).
-3. Under **"כתבות הממתינות לאישור (Pending Review)"**, inspect the pre-seeded flagship articles with side-by-side diffs showing the public version vs. reporter draft.
-4. Click **"החזר לתיקונים"** (Return for Revisions) to provide feedback, or **"אשר ופרסם"** (Approve & Publish).
-5. Open an article's Impact Analytics to inspect the dynamic **Chart.js** curve showing hourly views and vertical update markers indicating when editorial changes were published.
+### 2. Reporter
+1. Log in at [/login](http://localhost:3000/login) as `reporter1` / `password123`.
+2. Click **"כתבה חדשה"** (New article) and type. The status line shows the work saving automatically.
+3. Refresh the page, or close the browser and come back: the latest text is still there.
+4. Click **"הגשה לאישור עורך"** (Submit for approval). The article becomes Pending and is locked for editing.
+5. Open a published article and edit it: the public page keeps showing the old version.
+
+### 3. Editor
+1. Log out and log in as `editor` / `password123`. You land on `/editor`.
+2. Filter by **ממתינות לאישור עורך** (Awaiting approval) and open an update to a published article: the published and new versions are shown side by side, with changes highlighted.
+3. Return it with a note (log in as the reporter to see the note), or approve it and check that the public page now shows the new version.
+4. Open **ניתוח כתבות** (Impact Analytics), pick one of the multi-update articles, and see views per hour with markers at each published update.
+
+### 4. Restart persistence
+1. Log in as any user.
+2. Stop the server (`Ctrl+C`) and run `npm start` again.
+3. Refresh the page: you're still logged in, and unsubmitted drafts are still there.
+
+### 5. Permissions
+* Logged out, open `/reporter` or `/editor`: you're redirected to the login page.
+* As a reporter, open `/editor`: access is denied (`403`).
+* API calls are checked on the server too. For example, a reporter calling `PATCH /api/admin/articles/:id/status` gets `403`.
 
 ---
 
-## 📜 Academic Integrity & Collaboration Notice
-* **Developer 1 (Data Layer, Backend & Architecture):** Models, Auth, Sessions, State Machine, REST Endpoints, Seed Data, Test Suites, Base SSR views & Developer 2 integration layer.
-* **Developer 2 (Presentation Layer, UI/UX & Interactions):** Semantic CSS styling enhancements, infinite scroll intersection observer, live search autocomplete, Chart.js visual polish, dynamic comment DOM append. Detailed instructions can be found in [`docs/dev2-guide.md`](file:///d:/learn/The-Daily-Web-gmar/docs/dev2-guide.md).
+## 📜 Collaboration
+* **Developer 1 (data layer, backend and architecture):** models, authentication, sessions, state machine, REST endpoints, seed data, tests, base server-rendered views.
+* **Developer 2 (presentation layer, UI/UX):** reporter and editor areas, styling, infinite scroll, live search, comments, Chart.js analytics, Hebrew/English interface. See [`docs/dev2-guide.md`](docs/dev2-guide.md).
+
+Work split details: [`docs/roles.md`](docs/roles.md).

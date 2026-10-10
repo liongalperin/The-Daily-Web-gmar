@@ -40,7 +40,7 @@ const articleController = {
 
       const articles = await Article.toFeedItems(rawArticles, viewedIds);
 
-      // Calculate if more articles exist for Developer 2's infinite scroll observer
+      // A full page means there may be more articles for infinite scroll to load
       const hasMore = rawArticles.length === limit;
 
       return res.json({

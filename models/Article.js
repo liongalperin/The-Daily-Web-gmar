@@ -1,7 +1,7 @@
 /**
  * Article Model
  * Supports dual versioning (publicVersion vs draftVersion),
- * strict state machine transitions, publish history, and performance indexes.
+ * the status state machine, publish history, and indexes for the feed.
  */
 
 const mongoose = require('mongoose');
@@ -106,7 +106,7 @@ const articleSchema = new mongoose.Schema(
   }
 );
 
-// Virtual alias: article.views === article.totalViews (for Dev 2 compatibility)
+// article.views is another name for article.totalViews, used by the views
 articleSchema.virtual('views').get(function () {
   return this.totalViews;
 });
@@ -215,7 +215,7 @@ articleSchema.statics.toFeedItems = async function (rawArticles, viewedIds = [])
   });
 };
 
-// Full CRUD Static Helpers for academic rubric requirement
+// CRUD helpers
 articleSchema.statics.createArticle = function (data) {
   const summaryText = data.summary || data.snippet || (data.content ? data.content.slice(0, 150) + '...' : '');
   const category = data.category || 'news';
