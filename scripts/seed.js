@@ -323,6 +323,8 @@ async function seedDatabase(customUri) {
       const title = `${headline} (${i + 1})`;
       const summary = `${headline} - דיווח בלעדי מאת כתב The Daily Web על ההתפתחויות המרכזיות.`;
       const content = `${headline}\n\nבמסגרת המעקב השוטף של מערכת החדשות אחר הנושא, מדווח כי גורמים בכירים מעורבים בקידום היוזמה. הציבור מוזמן להתעדכן בעמוד זה.`;
+      // Same image in both versions, so the draft matches what readers see (no pending changes)
+      const imageUrl = rand(SAMPLE_IMAGES);
 
       const articleId = new mongoose.Types.ObjectId();
 
@@ -354,7 +356,7 @@ async function seedDatabase(customUri) {
           summary,
           snippet: summary,
           content,
-          imageUrl: rand(SAMPLE_IMAGES),
+          imageUrl,
           category: cat,
           publishedAt: pubDate
         },
@@ -363,7 +365,7 @@ async function seedDatabase(customUri) {
           summary,
           snippet: summary,
           content,
-          imageUrl: rand(SAMPLE_IMAGES),
+          imageUrl,
           category: cat,
           updatedAt: pubDate
         },
